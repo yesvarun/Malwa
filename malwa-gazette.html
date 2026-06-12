@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="pa">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#efe6d3">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>ਮਾਲਵਾ ਗਜ਼ਟ · The Malwa Gazette</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Noto+Serif+Gurmukhi:wght@400;600;700&family=Noto+Serif+Devanagari:wght@400;600;700&family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+/* ════════════════════════════════════════════════
+   THE MALWA GAZETTE — old-press tokens
+   paper #efe6d3 · ink #1d1a14 · faded #5c5546
+   stamp-red #b3372b · press-blue #2c4a6e
+   ════════════════════════════════════════════════ */
+:root{
+  --paper:#efe6d3; --paper-deep:#e6dac1; --ink:#1d1a14; --faded:#5c5546;
+  --stamp:#b3372b; --blue:#2c4a6e; --gold:#a8842c;
+  --serif-en:"Noto Serif","IM Fell English",serif;
+  --serif-pa:"Noto Serif Gurmukhi",serif;
+  --serif-hi:"Noto Serif Devanagari",serif;
+  --fell:"IM Fell English",serif;
+  --fellsc:"IM Fell English SC",serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--paper);color:var(--ink);
+  font-family:var(--serif-en);overscroll-behavior:none}
+body{
+  background-image:
+    radial-gradient(ellipse at 20% 10%, rgba(255,252,240,.55), transparent 55%),
+    radial-gradient(ellipse at 85% 90%, rgba(120,95,50,.10), transparent 50%),
+    repeating-linear-gradient(0deg, transparent 0 2px, rgba(95,80,50,.022) 2px 3px);
+}
+
+/* ── masthead ── */
+#masthead{
+  position:fixed;top:0;left:0;right:0;z-index:40;
+  padding:calc(env(safe-area-inset-top, 0px) + 6px) 12px 6px;
+  background:linear-gradient(var(--paper) 78%, rgba(239,230,211,0));
+  text-align:center;user-select:none;
+}
+#masthead h1{
+  font-family:var(--serif-pa);font-weight:700;font-size:22px;letter-spacing:.5px;line-height:1.15;
+}
+#masthead h1 .en{font-family:var(--fell);font-weight:400;font-size:13px;letter-spacing:3px;
+  display:block;color:var(--faded);text-transform:uppercase}
+#dateline{
+  font-family:var(--fellsc);font-size:10.5px;color:var(--faded);letter-spacing:1px;
+  border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);
+  margin:5px auto 0;padding:2px 0;max-width:340px;
+  display:flex;justify-content:space-between;gap:8px;
+}
+#dateline span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ── filter chips ── */
+#chips{
+  position:fixed;z-index:40;left:0;right:0;
+  top:calc(env(safe-area-inset-top,0px) + 78px);
+  display:flex;gap:6px;overflow-x:auto;padding:4px 12px 8px;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;
+}
+#chips::-webkit-scrollbar{display:none}
+.chip{
+  flex:0 0 auto;font-family:var(--serif-pa);font-size:13px;line-height:1;
+  padding:7px 13px;border:1.4px solid var(--ink);border-radius:3px;
+  background:var(--paper);color:var(--ink);cursor:pointer;
+  box-shadow:1.5px 1.5px 0 rgba(29,26,20,.55);
+}
+.chip.lat{font-family:var(--fellsc);letter-spacing:1px;font-size:12px}
+.chip.on{background:var(--ink);color:var(--paper);box-shadow:none;transform:translate(1px,1px)}
+.chip.red.on{background:var(--stamp);border-color:var(--stamp)}
+
+/* ── feed (vertical shorts) ── */
+#feed{
+  height:100%;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;
+}
+#feed::-webkit-scrollbar{display:none}
+.cardwrap{
+  height:100%;scroll-snap-align:start;scroll-snap-stop:always;
+  display:flex;align-items:center;justify-content:center;
+  padding:calc(env(safe-area-inset-top,0px) + 122px) 10px calc(env(safe-area-inset-bottom,0px) + 14px);
+}
+.card{
+  position:relative;width:100%;max-width:440px;height:100%;
+  background:linear-gradient(160deg,#f6efdd, #ece1c8 70%, #e4d6b8);
+  border:1.6px solid var(--ink);border-radius:4px;
+  box-shadow:4px 5px 0 rgba(29,26,20,.5), 0 18px 40px rgba(40,30,10,.25);
+  display:flex;flex-direction:column;overflow:hidden;
+  touch-action:pan-y;will-change:transform;
+}
+.card.flying{transition:transform .42s cubic-bezier(.3,.6,.4,1), opacity .42s}
+.kicker{
+  display:flex;align-items:center;gap:8px;padding:10px 14px 0;
+  font-family:var(--fellsc);font-size:11px;letter-spacing:1.5px;color:var(--faded);
+}
+.regiontag{
+  font-family:var(--serif-pa);font-size:12px;letter-spacing:.4px;
+  color:var(--stamp);border:1.3px solid var(--stamp);border-radius:2px;
+  padding:2.5px 7px;transform:rotate(-1.6deg);font-weight:600;
+  box-shadow:inset 0 0 6px rgba(179,55,43,.12);
+}
+.kicker time{margin-left:auto;font-style:italic;font-family:var(--fell);letter-spacing:.5px}
+.imgbox{
+  margin:10px 14px 0;height:34%;min-height:120px;flex:0 0 auto;
+  border:1.3px solid var(--ink);background:var(--paper-deep);
+  position:relative;overflow:hidden;
+}
+.imgbox img{width:100%;height:100%;object-fit:cover;display:block;
+  filter:sepia(.22) contrast(1.04) saturate(.92);}
+.imgbox .plate{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:6px;color:var(--faded);
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255,250,235,.7), transparent 70%),
+    repeating-conic-gradient(from 0deg, rgba(90,75,45,.06) 0 6deg, transparent 6deg 12deg);
+}
+.plate .orn{font-size:44px;line-height:1}
+.plate .src{font-family:var(--fellsc);font-size:12px;letter-spacing:2px;text-transform:uppercase}
+.headline{
+  padding:12px 16px 0;font-weight:700;line-height:1.32;
+  font-size:clamp(18px, 5.4vw, 23px);
+  display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;
+}
+.lang-pa .headline,.lang-pa .summary{font-family:var(--serif-pa)}
+.lang-hi .headline,.lang-hi .summary{font-family:var(--serif-hi)}
+.rule{
+  text-align:center;color:var(--gold);font-size:13px;letter-spacing:4px;
+  margin:8px 0 0;user-select:none;
+}
+.rule::before,.rule::after{content:"";display:inline-block;vertical-align:middle;
+  width:54px;height:1px;background:var(--ink);margin:0 8px;opacity:.6}
+.summary{
+  padding:6px 18px 0;color:#3a342a;font-size:15px;line-height:1.55;flex:1 1 auto;
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;
+}
+.summary:first-letter{font-family:var(--fell);font-size:1.5em;color:var(--stamp)}
+.cardfoot{
+  flex:0 0 auto;display:flex;align-items:center;gap:10px;
+  padding:10px 14px calc(12px + 2px);border-top:1px dashed rgba(29,26,20,.45);
+  margin-top:8px;background:rgba(230,218,193,.5);
+}
+.srcname{font-family:var(--fellsc);font-size:11.5px;letter-spacing:1.5px;color:var(--faded);
+  text-transform:uppercase;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.readbtn{
+  font-family:var(--serif-pa);font-size:14.5px;font-weight:600;color:var(--paper);
+  background:var(--blue);border:1.4px solid var(--ink);border-radius:3px;
+  padding:9px 16px;cursor:pointer;box-shadow:2px 2px 0 rgba(29,26,20,.55);
+}
+.readbtn:active{transform:translate(2px,2px);box-shadow:none}
+.stamp{
+  position:absolute;top:38%;left:50%;pointer-events:none;
+  font-family:var(--serif-pa);font-weight:700;font-size:42px;color:var(--stamp);
+  border:4px double var(--stamp);border-radius:6px;padding:6px 20px;
+  transform:translate(-50%,-50%) rotate(-14deg) scale(2.2);opacity:0;
+  mix-blend-mode:multiply;letter-spacing:2px;white-space:nowrap;
+}
+.stamp.show{animation:slam .34s cubic-bezier(.2,1.6,.4,1) forwards}
+@keyframes slam{to{opacity:.88;transform:translate(-50%,-50%) rotate(-14deg) scale(1)}}
+
+/* ── hint / toast / loader / panel ── */
+#hint{
+  position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 22px);left:0;right:0;
+  text-align:center;z-index:30;pointer-events:none;font-family:var(--serif-pa);
+  font-size:13px;color:var(--faded);opacity:0;transition:opacity .5s;
+  text-shadow:0 1px 0 var(--paper);
+}
+#toast{
+  position:fixed;top:calc(env(safe-area-inset-top,0px) + 124px);left:50%;
+  transform:translate(-50%,-16px);z-index:50;opacity:0;pointer-events:none;
+  background:var(--ink);color:var(--paper);font-family:var(--serif-pa);font-size:13.5px;
+  padding:8px 16px;border-radius:3px;transition:.35s;box-shadow:0 6px 18px rgba(0,0,0,.3);
+}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#loader{
+  position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;gap:14px;
+  align-items:center;justify-content:center;background:var(--paper);text-align:center;padding:30px;
+}
+#loader .wheel{font-size:46px;color:var(--stamp);animation:spin 2.6s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loader h2{font-family:var(--serif-pa);font-size:19px;font-weight:600}
+#loader p{font-family:var(--fell);font-style:italic;color:var(--faded);font-size:14px}
+#loader .bar{width:200px;height:5px;border:1px solid var(--ink);border-radius:3px;overflow:hidden}
+#loader .bar i{display:block;height:100%;width:0;background:var(--stamp);transition:width .3s}
+#empty{display:none;position:fixed;inset:0;z-index:20;flex-direction:column;gap:10px;
+  align-items:center;justify-content:center;text-align:center;padding:40px;color:var(--faded)}
+#empty .orn{font-size:40px;color:var(--gold)}
+#empty h3{font-family:var(--serif-pa);color:var(--ink)}
+#health{
+  display:none;position:fixed;inset:0;z-index:70;background:rgba(29,26,20,.92);color:#efe6d3;
+  font:12px/1.7 monospace;padding:50px 18px 30px;overflow-y:auto;white-space:pre-wrap;
+}
+#health b{color:#f0c46a}
+/* ── in-app reader (full story) ── */
+#reader{
+  display:none;position:fixed;inset:0;z-index:80;flex-direction:column;
+  background:var(--paper);
+  background-image:radial-gradient(ellipse at 20% 0%, rgba(255,252,240,.6), transparent 55%),
+    repeating-linear-gradient(0deg, transparent 0 2px, rgba(95,80,50,.02) 2px 3px);
+}
+#r-top{
+  flex:0 0 auto;display:flex;align-items:center;gap:10px;
+  padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 8px;
+  border-bottom:2.5px double var(--ink);
+}
+#r-top .ttl{font-family:var(--fellsc);font-size:12px;letter-spacing:2px;color:var(--faded);flex:1}
+#r-close{
+  font-size:20px;line-height:1;background:var(--paper);border:1.4px solid var(--ink);
+  border-radius:3px;width:36px;height:36px;cursor:pointer;color:var(--ink);
+  box-shadow:2px 2px 0 rgba(29,26,20,.5);
+}
+#r-close:active{transform:translate(2px,2px);box-shadow:none}
+#r-scroll{flex:1;overflow-y:auto;padding:16px 18px calc(env(safe-area-inset-bottom,0px) + 90px)}
+#r-title{font-weight:700;font-size:23px;line-height:1.3;font-family:var(--serif-pa)}
+#r-meta{
+  font-family:var(--fell);font-style:italic;color:var(--faded);font-size:13px;
+  margin:8px 0 12px;padding-bottom:8px;border-bottom:1px dashed rgba(29,26,20,.45);
+}
+.r-img{width:100%;border:1.3px solid var(--ink);margin:0 0 14px;
+  filter:sepia(.18) contrast(1.03);display:block}
+#r-body p{font-size:16.5px;line-height:1.75;margin:0 0 14px;color:#2c271d;
+  font-family:var(--serif-pa);text-align:justify;hyphens:auto}
+#r-body > p:first-of-type:first-letter{
+  font-family:var(--fell);font-size:2.9em;float:left;line-height:.85;
+  padding:2px 8px 0 0;color:var(--stamp);
+}
+.r-load,.r-fail{font-style:italic;color:var(--faded)!important;text-align:center!important}
+.r-load{animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.45}}
+#r-footer{
+  position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:center;
+  padding:12px 16px calc(env(safe-area-inset-bottom,0px) + 14px);
+  background:linear-gradient(rgba(239,230,211,0), var(--paper) 45%);
+}
+#r-ext{
+  font-family:var(--serif-pa);font-size:14px;font-weight:600;color:var(--ink);
+  background:var(--paper);border:1.4px solid var(--ink);border-radius:3px;
+  padding:9px 18px;cursor:pointer;box-shadow:2px 2px 0 rgba(29,26,20,.5);
+}
+#r-ext:active{transform:translate(2px,2px);box-shadow:none}
+@media (prefers-reduced-motion: reduce){
+  .card.flying{transition:none}.stamp.show{animation:none;opacity:.88;
+    transform:translate(-50%,-50%) rotate(-14deg)}
+  #loader .wheel{animation:none}
+}
+</style>
+</head>
+<body>
+
+<header id="masthead">
+  <h1>ਮਾਲਵਾ ਗਜ਼ਟ<span class="en">The Malwa Gazette · मालवा गज़ट</span></h1>
+  <div id="dateline">
+    <span id="dl-pa">—</span><span id="dl-en">Rampura Phul Edn.</span><span id="dl-count">—</span>
+  </div>
+</header>
+
+<nav id="chips">
+  <button class="chip on" data-k="lang" data-v="all">ਸਾਰੀਆਂ · All</button>
+  <button class="chip" data-k="lang" data-v="pa">ਪੰਜਾਬੀ</button>
+  <button class="chip" data-k="lang" data-v="hi">हिन्दी</button>
+  <button class="chip lat" data-k="lang" data-v="en">English</button>
+  <button class="chip red on" data-k="reg" data-v="all">ਹਰ ਥਾਂ</button>
+  <button class="chip red" data-k="reg" data-v="rampura">ਰਾਮਪੁਰਾ ਫੂਲ</button>
+  <button class="chip red" data-k="reg" data-v="bathinda">ਬਠਿੰਡਾ</button>
+  <button class="chip red" data-k="reg" data-v="nearby">ਬਰਨਾਲਾ–ਤਪਾ</button>
+  <button class="chip red" data-k="reg" data-v="punjab">ਪੰਜਾਬ</button>
+  <button class="chip red" data-k="reg" data-v="opinion">ਰਾਇ · Opinion</button>
+</nav>
+
+<main id="feed"></main>
+
+<div id="hint">⇠ ਪੜ੍ਹੀ ਖ਼ਬਰ ਪਾਸੇ ਸੁੱਟੋ &nbsp;·&nbsp; ਉੱਪਰ ਸਰਕਾਓ ⇡ ਅਗਲੀ ਖ਼ਬਰ</div>
+<div id="toast"></div>
+
+<div id="loader">
+  <span class="wheel">✺</span>
+  <h2>ਪ੍ਰੈੱਸ ਚੱਲ ਰਹੀ ਹੈ…</h2>
+  <p>setting today's edition in type</p>
+  <div class="bar"><i id="loadbar"></i></div>
+  <p id="loadmsg" style="font-size:12px">Jagbani · Ajit · Tribune · Bhaskar · Kesari …</p>
+</div>
+
+<div id="empty">
+  <span class="orn">❦</span>
+  <h3>ਅੱਜ ਦੀ ਛਪਾਈ ਖ਼ਤਮ</h3>
+  <p>You have read everything for this filter.<br>New stories arrive automatically — or pull another filter above.</p>
+</div>
+
+<div id="health"></div>
+
+<div id="reader">
+  <div id="r-top">
+    <span class="ttl">ਮਾਲਵਾ ਗਜ਼ਟ · FULL STORY</span>
+    <button id="r-close" aria-label="Close">✕</button>
+  </div>
+  <div id="r-scroll">
+    <h2 id="r-title"></h2>
+    <div id="r-meta"></div>
+    <div id="r-body"></div>
+  </div>
+  <div id="r-footer"><button id="r-ext">ਅਖ਼ਬਾਰ ਦੀ ਸਾਈਟ 'ਤੇ ਖੋਲ੍ਹੋ ↗</button></div>
+</div>
+
+<script>
+"use strict";
+/* ═════════════ CONFIG ═════════════ */
+const HOURS_BACK   = 48;          // freshness window: today + yesterday
+const REFRESH_MIN  = 8;           // background re-print interval
+const EXTRA_JSON_URL = "news.json"; // AI press room output (GitHub Actions + Claude). Items here carry AI summaries.
+
+const PROXIES = [
+  u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
+  u => "https://corsproxy.io/?url=" + encodeURIComponent(u),
+];
+
+const gn = (q,hl,ceid) =>
+  `https://news.google.com/rss/search?q=${encodeURIComponent(q+" when:2d")}&hl=${hl}&gl=IN&ceid=IN:${ceid}`;
+const bing = q =>
+  `https://www.bing.com/news/search?q=${encodeURIComponent(q)}&format=rss&qft=interval%3d%227%22`;
+
+/* every feed: url, lang, region. Bing duplicates key queries because its RSS carries images & real snippets. */
+const FEEDS = [
+  // ── ਪੰਜਾਬੀ ──
+  {u:gn('"ਰਾਮਪੁਰਾ ਫੂਲ"','pa','pa'),                          lang:"pa", region:"rampura"},
+  {u:gn('ਬਠਿੰਡਾ','pa','pa'),                                  lang:"pa", region:"bathinda"},
+  {u:gn('ਬਰਨਾਲਾ OR ਤਪਾ ਮੰਡੀ','pa','pa'),                      lang:"pa", region:"nearby"},
+  {u:gn('ਤਲਵੰਡੀ ਸਾਬੋ OR ਮੌੜ ਮੰਡੀ OR ਗੋਨਿਆਣਾ OR ਭੁੱਚੋ OR ਰਮਾਣ','pa','pa'), lang:"pa", region:"bathinda"},
+  {u:gn('ਪੰਜਾਬ','pa','pa'),                                   lang:"pa", region:"punjab"},
+  // ── हिन्दी ──
+  {u:gn('"रामपुरा फूल"','hi','hi'),                           lang:"hi", region:"rampura"},
+  {u:gn('बठिंडा','hi','hi'),                                   lang:"hi", region:"bathinda"},
+  {u:gn('बरनाला OR तपा','hi','hi'),                            lang:"hi", region:"nearby"},
+  {u:gn('पंजाब','hi','hi'),                                    lang:"hi", region:"punjab"},
+  // ── English ──
+  {u:gn('"Rampura Phul"','en-IN','en'),                       lang:"en", region:"rampura"},
+  {u:gn('Bathinda','en-IN','en'),                             lang:"en", region:"bathinda"},
+  {u:gn('Barnala OR "Tapa Mandi" Punjab','en-IN','en'),       lang:"en", region:"nearby"},
+  {u:gn('"Talwandi Sabo" OR "Maur Mandi" OR Goniana OR "Bhucho Mandi" OR "Rama Mandi" Bathinda','en-IN','en'), lang:"en", region:"bathinda"},
+  {u:gn('Punjab','en-IN','en'),                               lang:"en", region:"punjab"},
+  {u:gn('Punjab editorial OR opinion OR ਲੇਖ','en-IN','en'),   lang:"en", region:"opinion"},
+  // ── Bing (images + snippets) ──
+  {u:bing('Bathinda'),               lang:"en", region:"bathinda"},
+  {u:bing('"Rampura Phul"'),         lang:"en", region:"rampura"},
+  {u:bing('Barnala Punjab'),         lang:"en", region:"nearby"},
+  {u:bing('बठिंडा'),                  lang:"hi", region:"bathinda"},
+  {u:bing('ਬਠਿੰਡਾ'),                  lang:"pa", region:"bathinda"},
+];
+
+const REGION_LABEL = {rampura:"ਰਾਮਪੁਰਾ ਫੂਲ", bathinda:"ਬਠਿੰਡਾ", nearby:"ਬਰਨਾਲਾ–ਤਪਾ",
+                      punjab:"ਪੰਜਾਬ", opinion:"ਰਾਇ"};
+const REGION_W = {rampura:40, bathinda:30, nearby:20, punjab:6, opinion:6};
+const ORN = ["❦","✦","❧","✺","☙","✼"];
+
+/* ═════════════ STATE ═════════════ */
+let items=[], dismissed=new Set(), filterLang="all", filterReg="all";
+let health={}, audioCtx=null, firstSwipeDone=false;
+
+/* ═════════════ FETCH LAYER ═════════════ */
+async function viaProxy(url){
+  for(const p of PROXIES){
+    try{
+      const r = await fetch(p(url), {cache:"no-store"});
+      if(r.ok){ const t = await r.text(); if(t && t.length>80) return t; }
+    }catch(e){}
+  }
+  throw new Error("all proxies failed");
+}
+
+function textOf(el,tag){ const n=el.getElementsByTagName(tag)[0]; return n?n.textContent.trim():""; }
+
+function extractImage(el, descHTML){
+  for(const t of ["media:content","media:thumbnail","enclosure"]){
+    const n = el.getElementsByTagName(t)[0];
+    if(n && n.getAttribute("url")) return n.getAttribute("url");
+  }
+  const ni = el.getElementsByTagName("News:Image")[0] || el.getElementsByTagName("Image")[0];
+  if(ni && /^https?:/.test(ni.textContent.trim())) return ni.textContent.trim();
+  const m = /<img[^>]+src=["']([^"']+)/i.exec(descHTML||"");
+  return m ? m[1] : "";
+}
+
+function stripHTML(h){ const d=document.createElement("div"); d.innerHTML=h||""; return (d.textContent||"").replace(/\s+/g," ").trim(); }
+
+function normKey(t){
+  return t.toLowerCase().replace(/\s*[-–|‐]\s*[^-–|]+$/,"")           // trailing " - Source"
+          .replace(/[^\p{L}\p{N} ]/gu,"").replace(/\s+/g," ").trim().slice(0,64);
+}
+
+function parseFeed(xmlText, meta){
+  const doc = new DOMParser().parseFromString(xmlText,"text/xml");
+  const out = [];
+  for(const it of doc.getElementsByTagName("item")){
+    let title = textOf(it,"title"); if(!title) continue;
+    const link  = textOf(it,"link");
+    const pub   = new Date(textOf(it,"pubDate") || Date.now());
+    if(isNaN(pub) || (Date.now()-pub) > HOURS_BACK*3600e3) continue;
+    let source = textOf(it,"source") || "";
+    const dm = /\s[-–]\s([^-–]{2,40})$/.exec(title);
+    if(!source && dm){ source = dm[1]; }
+    title = title.replace(/\s[-–]\s[^-–]{2,40}$/,"").trim();
+    const descHTML = textOf(it,"description");
+    let summary = stripHTML(descHTML);
+    if(/^<a|google\.com/i.test(descHTML) || summary.startsWith(title.slice(0,20))) summary = summary.replace(title,"").trim();
+    if(summary.includes("href") || summary.length<35) summary = "";
+    out.push({
+      id: normKey(title), title, link, source: source||"Press wire",
+      summary, image: extractImage(it, descHTML),
+      lang: meta.lang, region: meta.region, date: pub,
+    });
+  }
+  return out;
+}
+
+function mergeItems(fresh){
+  let added=0;
+  const byId = new Map(items.map(x=>[x.id,x]));
+  for(const f of fresh){
+    const old = byId.get(f.id);
+    if(old){ // keep best of both: prefer image + real snippet; AI items always win
+      if(f.pref){ if(f.summary) old.summary=f.summary; if(f.image) old.image=f.image;
+                  if(f.link) old.link=f.link; old.region=f.region; }
+      if(!old.image && f.image) old.image = f.image;
+      if(!old.summary && f.summary) old.summary = f.summary;
+      if(REGION_W[f.region] > REGION_W[old.region]) old.region = f.region;
+    }else if(!dismissed.has(f.id)){
+      byId.set(f.id,f); added++;
+    }
+  }
+  items = [...byId.values()].sort((a,b)=>{
+    const s = (REGION_W[b.region]-REGION_W[a.region]);
+    return s !== 0 ? s : b.date - a.date;
+  });
+  return added;
+}
+
+async function pressRun(initial){
+  let done=0, added=0;
+  await Promise.all(FEEDS.map(async f=>{
+    try{
+      const xml = await viaProxy(f.u);
+      const got = parseFeed(xml, f);
+      health[f.u] = "OK · "+got.length+" items";
+      added += mergeItems(got);
+    }catch(e){ health[f.u] = "FAIL · "+e.message; }
+    done++;
+    if(initial){
+      document.getElementById("loadbar").style.width = (done/FEEDS.length*100)+"%";
+      document.getElementById("loadmsg").textContent = done+" / "+FEEDS.length+" presses checked";
+    }
+  }));
+  if(EXTRA_JSON_URL){
+    try{
+      const r = await fetch(EXTRA_JSON_URL,{cache:"no-store"}); const arr = await r.json();
+      added += mergeItems(arr.map(x=>({ ...x, pref:true, id:x.id||normKey(x.title), date:new Date(x.date) }))
+        .filter(x=>(Date.now()-x.date)<HOURS_BACK*3600e3));
+      health["news.json (AI press)"]="OK · "+arr.length+" items";
+    }catch(e){ health["news.json (AI press)"]="FAIL · "+e.message; }
+  }
+  return added;
+}
+
+/* ═════════════ SOUND (paper whoosh + stamp thump) ═════════════ */
+function ensureAudio(){ if(!audioCtx){ try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } }
+function whoosh(){
+  if(!audioCtx) return;
+  const len = audioCtx.sampleRate*0.32, buf = audioCtx.createBuffer(1,len,audioCtx.sampleRate);
+  const d = buf.getChannelData(0);
+  for(let i=0;i<len;i++) d[i] = (Math.random()*2-1)*(1-i/len);
+  const src=audioCtx.createBufferSource(); src.buffer=buf;
+  const f=audioCtx.createBiquadFilter(); f.type="bandpass"; f.Q.value=.8;
+  f.frequency.setValueAtTime(600,audioCtx.currentTime);
+  f.frequency.exponentialRampToValueAtTime(2600,audioCtx.currentTime+0.28);
+  const g=audioCtx.createGain(); g.gain.value=.5;
+  src.connect(f).connect(g).connect(audioCtx.destination); src.start();
+  // stamp thump
+  const o=audioCtx.createOscillator(), g2=audioCtx.createGain();
+  o.type="sine"; o.frequency.setValueAtTime(150,audioCtx.currentTime+.18);
+  o.frequency.exponentialRampToValueAtTime(55,audioCtx.currentTime+.32);
+  g2.gain.setValueAtTime(.001,audioCtx.currentTime+.18);
+  g2.gain.exponentialRampToValueAtTime(.7,audioCtx.currentTime+.2);
+  g2.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+.36);
+  o.connect(g2).connect(audioCtx.destination); o.start(audioCtx.currentTime+.18); o.stop(audioCtx.currentTime+.4);
+}
+
+/* ═════════════ RENDER ═════════════ */
+const feedEl = document.getElementById("feed");
+function ago(d){
+  const m = Math.max(1, Math.round((Date.now()-d)/60000));
+  if(m<60) return m+" ਮਿੰਟ";
+  const h = Math.round(m/60); if(h<24) return h+" ਘੰਟੇ";
+  return "ਕੱਲ੍ਹ";
+}
+function visible(){
+  return items.filter(x=>!dismissed.has(x.id)
+    && (filterLang==="all"||x.lang===filterLang)
+    && (filterReg==="all"||x.region===filterReg));
+}
+function render(keepScroll){
+  const y = keepScroll ? feedEl.scrollTop : 0;
+  const list = visible();
+  document.getElementById("dl-count").textContent = list.length+" ਖ਼ਬਰਾਂ";
+  document.getElementById("empty").style.display = list.length? "none":"flex";
+  feedEl.innerHTML = "";
+  const frag = document.createDocumentFragment();
+  list.forEach((x,i)=>{
+    const w = document.createElement("div"); w.className="cardwrap";
+    const c = document.createElement("article");
+    c.className = "card lang-"+x.lang; c.dataset.id = x.id;
+    const orn = ORN[(x.id.length+i)%ORN.length];
+    c.innerHTML = `
+      <div class="kicker">
+        <span class="regiontag">${REGION_LABEL[x.region]||x.region}</span>
+        <span>${x.lang.toUpperCase()}</span>
+        <time>${ago(x.date)} ਪਹਿਲਾਂ · ${x.date.toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</time>
+      </div>
+      <div class="imgbox">
+        ${x.image ? `<img loading="lazy" src="${x.image}" alt=""
+            onerror="this.remove();this.parentElement.querySelector('.plate').style.display='flex'">`:""}
+        <div class="plate" style="${x.image?'display:none':''}">
+          <span class="orn">${orn}</span><span class="src">${x.source}</span>
+        </div>
+      </div>
+      <h2 class="headline">${x.title}</h2>
+      <div class="rule">❦</div>
+      <p class="summary">${x.summary || "ਪੂਰੀ ਖ਼ਬਰ ਪੜ੍ਹਨ ਲਈ ਹੇਠਾਂ ਬਟਨ ਦਬਾਓ — ਸਿੱਧਾ ਅਖ਼ਬਾਰ ਦੇ ਪੰਨੇ 'ਤੇ ਪੁੱਜੋਗੇ।"}</p>
+      <div class="cardfoot">
+        <span class="srcname">${x.source}</span>
+        <button class="readbtn">ਪੂਰੀ ਖ਼ਬਰ ਪੜ੍ਹੋ →</button>
+      </div>
+      <div class="stamp">ਪੜ੍ਹਿਆ ✓</div>`;
+    c.querySelector(".readbtn").addEventListener("click", ev=>{
+      ev.stopPropagation(); openReader(x);
+    });
+    attachSwipe(c, w, x);
+    w.appendChild(c); frag.appendChild(w);
+  });
+  feedEl.appendChild(frag);
+  if(keepScroll) feedEl.scrollTop = y;
+}
+
+/* ═════════════ SWIPE-TO-DISMISS ═════════════ */
+function attachSwipe(card, wrap, item){
+  let x0=0,y0=0,dx=0,dy=0,active=false,horiz=null;
+  card.addEventListener("pointerdown", e=>{
+    if(e.target.closest(".readbtn")) return;
+    ensureAudio(); active=true; horiz=null; x0=e.clientX; y0=e.clientY; dx=dy=0;
+    card.classList.remove("flying");
+  });
+  card.addEventListener("pointermove", e=>{
+    if(!active) return;
+    dx=e.clientX-x0; dy=e.clientY-y0;
+    if(horiz===null && (Math.abs(dx)>8||Math.abs(dy)>8)) horiz = Math.abs(dx)>Math.abs(dy);
+    if(horiz){
+      e.preventDefault();
+      card.style.transform = `translateX(${dx}px) rotate(${dx/22}deg)`;
+      card.style.opacity = 1-Math.min(.5,Math.abs(dx)/600);
+      try{ card.setPointerCapture(e.pointerId); }catch(_){}
+    }
+  });
+  const end = e=>{
+    if(!active) return; active=false;
+    if(horiz && Math.abs(dx)>90){
+      const dir = dx>0?1:-1;
+      card.querySelector(".stamp").classList.add("show");
+      whoosh();
+      card.classList.add("flying");
+      card.style.transform = `translateX(${dir*window.innerWidth*1.2}px) rotate(${dir*24}deg)`;
+      card.style.opacity = 0;
+      dismissed.add(item.id);
+      if(!firstSwipeDone){ firstSwipeDone=true; document.getElementById("hint").style.opacity=0; }
+      setTimeout(()=>{
+        wrap.style.height="0px"; wrap.style.padding="0"; wrap.style.transition="height .25s,padding .25s";
+        setTimeout(()=>{ wrap.remove();
+          document.getElementById("dl-count").textContent = visible().length+" ਖ਼ਬਰਾਂ";
+          if(!visible().length) document.getElementById("empty").style.display="flex";
+        },260);
+      },380);
+    }else{
+      card.classList.add("flying");
+      card.style.transform=""; card.style.opacity=1;
+    }
+  };
+  card.addEventListener("pointerup",end);
+  card.addEventListener("pointercancel",end);
+}
+
+/* ═════════════ IN-APP READER (full story) ═════════════ */
+const readerCache = new Map();
+const readerEl = document.getElementById("reader");
+document.getElementById("r-close").onclick = ()=>{ readerEl.style.display="none"; };
+
+function decodeGoogleNewsUrl(link){
+  /* GN /rss/articles/ IDs often carry the real URL base64-encoded inside */
+  try{
+    const m = /articles\/([^?]+)/.exec(link); if(!m) return null;
+    const s = atob(m[1].replace(/-/g,"+").replace(/_/g,"/"));
+    const i = s.indexOf("http"); if(i<0) return null;
+    let url=""; for(let j=i;j<s.length;j++){const c=s.charCodeAt(j); if(c<33||c>126)break; url+=s[j];}
+    return /^https?:\/\/.{8,}/.test(url) ? url : null;
+  }catch(e){ return null; }
+}
+async function sniffRedirect(gnUrl){
+  try{
+    const html = await viaProxy(gnUrl);
+    const m = /https?:\/\/(?!news\.google|www\.google|accounts\.|gstatic|fonts\.)[^"'<>\\ ]{15,300}/.exec(html);
+    return m ? m[0] : null;
+  }catch(e){ return null; }
+}
+function extractArticle(html){
+  const doc = new DOMParser().parseFromString(html,"text/html");
+  doc.querySelectorAll("script,style,noscript,iframe,svg,form,header,footer,nav,aside,button").forEach(n=>n.remove());
+  let best=null,bestScore=0;
+  doc.querySelectorAll('article,main,[class*="story"],[class*="article"],[class*="content"],[itemprop="articleBody"]')
+    .forEach(c=>{
+      let sc=0; c.querySelectorAll("p").forEach(p=>{const t=p.textContent.trim(); if(t.length>60) sc+=t.length;});
+      if(sc>bestScore){bestScore=sc;best=c;}
+    });
+  const root = best || doc.body;
+  const seen = new Set();
+  const paras = [...root.querySelectorAll("p")]
+    .map(p=>p.textContent.replace(/\s+/g," ").trim())
+    .filter(t=>t.length>50 && !seen.has(t) && seen.add(t)
+      && !/cookie|subscrib|whatsapp channel|telegram channel|download.{0,12}app|advertis|all rights reserved|epaper/i.test(t));
+  const og = q => doc.querySelector(`meta[property="${q}"]`)?.getAttribute("content") || "";
+  return { paras: paras.slice(0,40), img: og("og:image") };
+}
+async function openReader(x){
+  readerEl.style.display = "flex";
+  document.getElementById("r-scroll").scrollTop = 0;
+  document.getElementById("r-title").textContent = x.title;
+  document.getElementById("r-meta").textContent =
+    x.source + " · " + x.date.toLocaleString("en-IN",
+      {weekday:"short", day:"numeric", month:"long", hour:"numeric", minute:"2-digit"});
+  document.getElementById("r-ext").onclick = ()=>window.open(x.link,"_blank","noopener");
+  const body = document.getElementById("r-body");
+  body.innerHTML = '<p class="r-load">✺ ਛਾਪਾ ਲਿਆ ਰਹੇ ਹਾਂ… bringing the full print</p>';
+  try{
+    let art = readerCache.get(x.id);
+    if(!art){
+      let real = x.link;
+      if(/news\.google\./.test(real))
+        real = decodeGoogleNewsUrl(real) || await sniffRedirect(real) || real;
+      const html = await viaProxy(real);
+      art = extractArticle(html);
+      if(!art.paras.length) throw new Error("no text");
+      readerCache.set(x.id, art);
+    }
+    const pic = art.img || x.image;
+    body.innerHTML =
+      (pic ? `<img class="r-img" loading="lazy" src="${pic}" onerror="this.remove()">` : "") +
+      art.paras.map(p=>"<p>"+p.replace(/&/g,"&amp;").replace(/</g,"&lt;")+"</p>").join("");
+  }catch(e){
+    body.innerHTML = '<p class="r-fail">ਇਹ ਅਖ਼ਬਾਰ ਆਪਣਾ ਪੰਨਾ ਇੱਥੇ ਛਾਪਣ ਨਹੀਂ ਦਿੰਦਾ —<br>this paper blocks reading inside other apps.<br>Use the button below to open it directly.</p>';
+  }
+}
+
+/* ═════════════ FILTERS / HEALTH / DATELINE ═════════════ */
+document.getElementById("chips").addEventListener("click", e=>{
+  const b = e.target.closest(".chip"); if(!b) return;
+  document.querySelectorAll(`.chip[data-k="${b.dataset.k}"]`).forEach(c=>c.classList.remove("on"));
+  b.classList.add("on");
+  if(b.dataset.k==="lang") filterLang=b.dataset.v; else filterReg=b.dataset.v;
+  render(false); feedEl.scrollTop=0;
+});
+
+let pressTimer=null;
+const mast = document.getElementById("masthead");
+mast.addEventListener("pointerdown",()=>{ pressTimer=setTimeout(showHealth,900); });
+mast.addEventListener("pointerup",()=>clearTimeout(pressTimer));
+mast.addEventListener("pointerleave",()=>clearTimeout(pressTimer));
+function showHealth(){
+  const h = document.getElementById("health");
+  h.style.display="block";
+  h.textContent = "PRESS-ROOM HEALTH  (tap to close)\n"+"═".repeat(34)+"\n\n"+
+    Object.entries(health).map(([u,s])=>{
+      const q = decodeURIComponent((/q=([^&]+)/.exec(u)||[,"?"])[1]).replace(/ when:2d/,"");
+      return (s.startsWith("OK")?"✓ ":"✗ ")+q+"\n   "+s;
+    }).join("\n\n") + "\n\nTotal in stock: "+items.length+" · dismissed: "+dismissed.size;
+  h.onclick=()=>h.style.display="none";
+}
+
+function dateline(){
+  const d = new Date();
+  const pa = d.toLocaleDateString("pa-IN",{weekday:"long",day:"numeric",month:"long"});
+  document.getElementById("dl-pa").textContent = pa;
+}
+
+function toast(msg){
+  const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),2600);
+}
+
+/* ═════════════ BOOT + BACKGROUND PRESS ═════════════ */
+(async function(){
+  dateline();
+  await pressRun(true);
+  document.getElementById("loader").style.display="none";
+  render(false);
+  setTimeout(()=>{ if(!firstSwipeDone) document.getElementById("hint").style.opacity=1; },1200);
+  setTimeout(()=>{ document.getElementById("hint").style.opacity=0; },9000);
+  setInterval(async ()=>{
+    const n = await pressRun(false);
+    if(n>0){ render(true); toast("✦ "+n+" ਨਵੀਆਂ ਖ਼ਬਰਾਂ ਛਪੀਆਂ"); }
+  }, REFRESH_MIN*60*1000);
+})();
+</script>
+</body>
+</html>
