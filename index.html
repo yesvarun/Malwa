@@ -340,12 +340,12 @@ const FEEDS = [
   {u:gn('"Talwandi Sabo" OR "Maur Mandi" OR Goniana OR "Bhucho Mandi" OR "Rama Mandi" Bathinda','en-IN','en'), lang:"en", region:"bathinda"},
   {u:gn('Punjab','en-IN','en'),                               lang:"en", region:"punjab"},
   {u:gn('Punjab editorial OR opinion OR ਲੇਖ','en-IN','en'),   lang:"en", region:"opinion"},
-  // ── Bing (images + snippets) ──
-  {u:bing('Bathinda'),               lang:"en", region:"bathinda"},
-  {u:bing('"Rampura Phul"'),         lang:"en", region:"rampura"},
-  {u:bing('Barnala Punjab'),         lang:"en", region:"nearby"},
-  {u:bing('बठिंडा'),                  lang:"hi", region:"bathinda"},
-  {u:bing('ਬਠਿੰਡਾ'),                  lang:"pa", region:"bathinda"},
+  // ── Bing (images + snippets) — ENRICH ONLY: Bing fakes dates on old stories, so these never create cards
+  {u:bing('Bathinda'),               lang:"en", region:"bathinda", enrich:true},
+  {u:bing('"Rampura Phul"'),         lang:"en", region:"rampura",  enrich:true},
+  {u:bing('Barnala Punjab'),         lang:"en", region:"nearby",   enrich:true},
+  {u:bing('बठिंडा'),                  lang:"hi", region:"bathinda", enrich:true},
+  {u:bing('ਬਠਿੰਡਾ'),                  lang:"pa", region:"bathinda", enrich:true},
 ];
 
 const REGION_LABEL = {rampura:"ਰਾਮਪੁਰਾ ਫੂਲ", bathinda:"ਬਠਿੰਡਾ", nearby:"ਬਰਨਾਲਾ–ਤਪਾ",
@@ -407,7 +407,7 @@ function parseFeed(xmlText, meta){
     out.push({
       id: normKey(title), title, link, source: source||"Press wire",
       summary, image: extractImage(it, descHTML),
-      lang: meta.lang, region: meta.region, date: pub,
+      lang: meta.lang, region: meta.region, date: pub, enrich: !!meta.enrich,
     });
   }
   return out;
@@ -424,7 +424,7 @@ function mergeItems(fresh){
       if(!old.image && f.image) old.image = f.image;
       if(!old.summary && f.summary) old.summary = f.summary;
       if(REGION_W[f.region] > REGION_W[old.region]) old.region = f.region;
-    }else if(!dismissed.has(f.id)){
+    }else if(!dismissed.has(f.id) && !f.enrich){
       byId.set(f.id,f); added++;
     }
   }

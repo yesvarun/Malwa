@@ -91,7 +91,7 @@ def fetch(url, timeout=12):
     r.raise_for_status()
     return r
 
-def parse_feed(xml_text, lang, region):
+def parse_feed(xml_text, lang, region, enrich=False):
     items = []
     soup = BeautifulSoup(xml_text, "xml")
     cutoff = datetime.now(timezone.utc) - timedelta(hours=HOURS_BACK)
@@ -133,7 +133,7 @@ def parse_feed(xml_text, lang, region):
         items.append(dict(id=norm_key(title), title=title, link=link,
                           source=source or "Press wire", snippet=snippet,
                           image=image, lang=lang, region=region,
-                          date=pub.isoformat()))
+                          date=pub.isoformat(), enrich=enrich))
     return items
 
 def grab_article(item):
@@ -166,7 +166,18 @@ def grab_article(item):
             seen.add(t)
             paras.append(t)
     og = soup.find("meta", property="og:image")
-    return "\n".join(paras)[:4000], (og.get("content", "") if og else ""), url
+    # the article's OWN published date — the ground truth
+    pub_iso = ""
+    dn = (soup.find("meta", attrs={"property": "article:published_time"})
+          or soup.find("meta", attrs={"itemprop": "datePublished"})
+          or soup.find("meta", attrs={"name": "publish-date"})
+          or soup.find("time", attrs={"datetime": True}))
+    if dn:
+        raw = dn.get("content") or dn.get("datetime") or ""
+        m = re.match(r"\d{4}-\d{2}-\d{2}[T ]?[\d:.+Z]*", raw.strip())
+        if m:
+            pub_iso = m.group(0)
+    return "\n".join(paras)[:4000], (og.get("content", "") if og else ""), url, pub_iso
 
 # ───────── Claude: read & summarize ─────────
 def claude_read(batch):
@@ -180,6 +191,7 @@ For EACH article below, return a JSON object with:
 - "summary": 50-80 words, factual, neutral, written in the SAME LANGUAGE as the article (Punjabi stays Punjabi in Gurmukhi, Hindi stays Hindi, English stays English). No opinions added, no hype.
 - "region": exactly one of "rampura" (Rampura Phul / Phul town / Rampura tehsil villages), "bathinda" (Bathinda city/district incl. Talwandi Sabo, Maur, Goniana, Bhucho, Rama Mandi, Raman, Sangat), "nearby" (Barnala, Tapa, Dhanaula, Mehal Kalan), "opinion" (editorial/op-ed/magazine piece), or "punjab" (everything else).
 - "lang": "pa", "hi" or "en".
+- "fresh": true normally; false ONLY if the text clearly reports events from more than 3 days ago (old dates, last year, anniversary retrospectives, recycled stories).
 
 Respond with ONLY a JSON array, no markdown fences, no preamble.
 
@@ -208,8 +220,9 @@ def main():
     # 1. collect from every press
     pool = {}
     for url, lang, region in FEEDS:
+        is_bing = "bing.com" in url   # Bing fakes dates on old stories → enrich-only
         try:
-            for it in parse_feed(fetch(url).text, lang, region):
+            for it in parse_feed(fetch(url).text, lang, region, enrich=is_bing):
                 ex = pool.get(it["id"])
                 if ex:
                     if not ex["image"] and it["image"]:
@@ -218,7 +231,7 @@ def main():
                         ex["snippet"] = it["snippet"]
                     if REGION_W[it["region"]] > REGION_W[ex["region"]]:
                         ex["region"] = it["region"]
-                else:
+                elif not it["enrich"]:
                     pool[it["id"]] = it
             print(f"✓ {lang}/{region}")
         except Exception as e:
@@ -239,12 +252,24 @@ def main():
 
     # 3. fetch article text + image, then Claude reads in batches
     for x in fresh:
-        text, og_img, real = grab_article(x)
+        text, og_img, real, page_date = grab_article(x)
         x["text"] = text
         if og_img and not x.get("image"):
             x["image"] = og_img
         if real and "news.google." not in real:
             x["link"] = real
+        if page_date:  # the article page itself knows its true date
+            try:
+                pd = datetime.fromisoformat(page_date.replace("Z", "+00:00").replace(" ", "T"))
+                if pd.tzinfo is None:
+                    pd = pd.replace(tzinfo=timezone.utc)
+                if pd < cutoff:
+                    x["drop"] = True   # feed lied — story is old
+                else:
+                    x["date"] = pd.isoformat()
+            except Exception:
+                pass
+    fresh = [x for x in fresh if not x.get("drop")]
 
     for i in range(0, len(fresh), BATCH):
         chunk = fresh[i:i + BATCH]
@@ -255,6 +280,7 @@ def main():
                     "summary": res.get("summary", ""),
                     "region": res.get("region", a["region"]),
                     "lang": res.get("lang", a["lang"]),
+                    "fresh": res.get("fresh", True),
                 }
             print(f"  Claude read batch {i//BATCH + 1}")
         except Exception as e:
@@ -264,6 +290,8 @@ def main():
     edition = []
     for x in pool.values():
         c = cache.get(md5(x["title"]), {})
+        if x.get("drop") or c.get("fresh") is False:
+            continue   # old story — never print
         edition.append({
             "title": x["title"],
             "link": x["link"],
