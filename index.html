@@ -510,6 +510,33 @@ function whoosh(){
 }
 
 /* ═════════════ RENDER ═════════════ */
+/* ═══ image fallback: blocked photo → retry via proxy → plate ═══ */
+function imgFallback(img){
+  const tried = img.getAttribute("data-tried")||"0";
+  const orig = img.getAttribute("data-orig") || img.src;
+  if(tried==="0"){
+    img.setAttribute("data-tried","1");
+    img.setAttribute("data-orig",orig);
+    img.src = "https://images.weserv.nl/?url=" + encodeURIComponent(orig.replace(/^https?:\/\//,"")) + "&w=600&output=jpg";
+    return;
+  }
+  // give up → show the letterpress plate
+  const box = img.parentElement; img.remove();
+  const plate = box && box.querySelector(".plate"); if(plate) plate.style.display="flex";
+}
+window.imgFallback = imgFallback;
+function imgFallbackReader(img){
+  const tried = img.getAttribute("data-tried")||"0";
+  const orig = img.getAttribute("data-orig") || img.src;
+  if(tried==="0"){
+    img.setAttribute("data-tried","1"); img.setAttribute("data-orig",orig);
+    img.src = "https://images.weserv.nl/?url=" + encodeURIComponent(orig.replace(/^https?:\/\//,"")) + "&w=900&output=jpg";
+    return;
+  }
+  img.remove();
+}
+window.imgFallbackReader = imgFallbackReader;
+
 const feedEl = document.getElementById("feed");
 function ago(d){
   const m = Math.max(1, Math.round((Date.now()-d)/60000));
@@ -541,8 +568,8 @@ function render(keepScroll){
         <time>${ago(x.date)} ਪਹਿਲਾਂ · ${x.date.toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</time>
       </div>
       <div class="imgbox">
-        ${x.image ? `<img loading="lazy" src="${x.image}" alt=""
-            onerror="this.remove();this.parentElement.querySelector('.plate').style.display='flex'">`:""}
+        ${x.image ? `<img loading="lazy" src="${x.image}" alt="" data-tried="0"
+            onerror="imgFallback(this)">`:""}
         <div class="plate" style="${x.image?'display:none':''}">
           <span class="orn">${orn}</span><span class="src">${x.source}</span>
         </div>
@@ -666,7 +693,7 @@ async function openReader(x){
     const pic = x.image;
     const paras = x.digest.split(/\n+|(?<=[।.!?])\s+(?=[A-Zਅ-ੴअ-ह])/).filter(s=>s.trim().length>2);
     body.innerHTML =
-      (pic ? `<img class="r-img" loading="lazy" src="${pic}" onerror="this.remove()">` : "") +
+      (pic ? `<img class="r-img" loading="lazy" src="${pic}" data-tried="0" onerror="imgFallbackReader(this)">` : "") +
       paras.map(p=>"<p>"+p.replace(/&/g,"&amp;").replace(/</g,"&lt;")+"</p>").join("");
     return;
   }
@@ -684,7 +711,7 @@ async function openReader(x){
     }
     const pic = art.img || x.image;
     body.innerHTML =
-      (pic ? `<img class="r-img" loading="lazy" src="${pic}" onerror="this.remove()">` : "") +
+      (pic ? `<img class="r-img" loading="lazy" src="${pic}" data-tried="0" onerror="imgFallbackReader(this)">` : "") +
       art.paras.map(p=>"<p>"+p.replace(/&/g,"&amp;").replace(/</g,"&lt;")+"</p>").join("");
   }catch(e){
     body.innerHTML = '<p class="r-fail">ਇਹ ਅਖ਼ਬਾਰ ਆਪਣਾ ਪੰਨਾ ਇੱਥੇ ਛਾਪਣ ਨਹੀਂ ਦਿੰਦਾ —<br>this paper blocks reading inside other apps.<br>Use the button below to open it directly.</p>';

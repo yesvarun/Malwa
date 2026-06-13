@@ -179,7 +179,23 @@ def grab_article(item):
                 t, re.I)):
             seen.add(t)
             paras.append(t)
-    og = soup.find("meta", property="og:image")
+    # find the lead image: try several meta tags, then the first big article image
+    img_url = ""
+    for sel,attr in [('meta[property="og:image"]','content'),
+                     ('meta[property="og:image:url"]','content'),
+                     ('meta[name="twitter:image"]','content'),
+                     ('meta[name="twitter:image:src"]','content'),
+                     ('meta[itemprop="image"]','content'),
+                     ('link[rel="image_src"]','href')]:
+        n = soup.select_one(sel)
+        if n and n.get(attr,"").startswith("http"):
+            img_url = n[attr]; break
+    if not img_url:
+        # first reasonably large <img> inside the article body
+        for im in root.find_all("img"):
+            src = im.get("src") or im.get("data-src") or im.get("data-lazy-src") or ""
+            if src.startswith("http") and not re.search(r"logo|icon|avatar|sprite|1x1|blank|placeholder|\.svg", src, re.I):
+                img_url = src; break
     # the article's OWN published date — the ground truth
     pub_iso = ""
     dn = (soup.find("meta", attrs={"property": "article:published_time"})
@@ -191,7 +207,7 @@ def grab_article(item):
         m = re.match(r"\d{4}-\d{2}-\d{2}[T ]?[\d:.+Z]*", raw.strip())
         if m:
             pub_iso = m.group(0)
-    return "\n".join(paras)[:4000], (og.get("content", "") if og else ""), url, pub_iso
+    return "\n".join(paras)[:4000], img_url, url, pub_iso
 
 # ───────── Claude: read & summarize ─────────
 def claude_read(batch):

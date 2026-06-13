@@ -30,7 +30,7 @@ self.addEventListener("fetch", e=>{
 
   // never cache news data or external feeds/proxies — always live
   const isLiveData = url.pathname.endsWith("news.json")
-    || /allorigins|corsproxy|news\.google|bing\.com|api\.anthropic/.test(url.href);
+    || /allorigins|corsproxy|weserv|news\.google|bing\.com|api\.anthropic/.test(url.href);
   if(isLiveData){
     e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));
     return;
