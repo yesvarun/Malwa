@@ -306,7 +306,7 @@ body{
 <script>
 "use strict";
 /* ═════════════ CONFIG ═════════════ */
-const HOURS_BACK   = 48;          // freshness window: today + yesterday
+const HOURS_BACK   = 24;          // freshness window: today + last night only
 const REFRESH_MIN  = 8;           // background re-print interval
 const EXTRA_JSON_URL = "news.json"; // AI press room output (GitHub Actions + Claude). Items here carry AI summaries.
 
@@ -316,7 +316,7 @@ const PROXIES = [
 ];
 
 const gn = (q,hl,ceid) =>
-  `https://news.google.com/rss/search?q=${encodeURIComponent(q+" when:2d")}&hl=${hl}&gl=IN&ceid=IN:${ceid}`;
+  `https://news.google.com/rss/search?q=${encodeURIComponent(q+" when:1d")}&hl=${hl}&gl=IN&ceid=IN:${ceid}`;
 const bing = q =>
   `https://www.bing.com/news/search?q=${encodeURIComponent(q)}&format=rss&qft=interval%3d%227%22`;
 
@@ -354,8 +354,20 @@ const REGION_W = {rampura:40, bathinda:30, nearby:20, punjab:6, opinion:6};
 const ORN = ["❦","✦","❧","✺","☙","✼"];
 
 /* ═════════════ STATE ═════════════ */
-let items=[], dismissed=new Set(), filterLang="all", filterReg="all";
+let items=[], filterLang="all", filterReg="all";
 let health={}, audioCtx=null, firstSwipeDone=false;
+
+/* permanent read-memory (survives closing the app; per device) */
+const store = {
+  get(){ try{ return JSON.parse(localStorage.getItem("mg_read")||"{}"); }catch(e){ return {}; } },
+  set(o){ try{ localStorage.setItem("mg_read", JSON.stringify(o)); }catch(e){} }
+};
+let readLog = store.get();
+{ const now=Date.now();                       // prune entries older than 3 days
+  for(const k in readLog) if(now-readLog[k] > 72*3600e3) delete readLog[k];
+  store.set(readLog); }
+let dismissed = new Set(Object.keys(readLog));
+function markRead(id){ readLog[id]=Date.now(); store.set(readLog); dismissed.add(id); }
 
 /* ═════════════ FETCH LAYER ═════════════ */
 async function viaProxy(url){
@@ -568,7 +580,7 @@ function attachSwipe(card, wrap, item){
       card.classList.add("flying");
       card.style.transform = `translateX(${dir*window.innerWidth*1.2}px) rotate(${dir*24}deg)`;
       card.style.opacity = 0;
-      dismissed.add(item.id);
+      dismissed.add(item.id); markRead(item.id);
       if(!firstSwipeDone){ firstSwipeDone=true; document.getElementById("hint").style.opacity=0; }
       setTimeout(()=>{
         wrap.style.height="0px"; wrap.style.padding="0"; wrap.style.transition="height .25s,padding .25s";
@@ -627,6 +639,7 @@ function extractArticle(html){
   return { paras: paras.slice(0,40), img: og("og:image") };
 }
 async function openReader(x){
+  markRead(x.id);                 // opened = read: never shown again after this visit
   readerEl.style.display = "flex";
   document.getElementById("r-scroll").scrollTop = 0;
   document.getElementById("r-title").textContent = x.title;

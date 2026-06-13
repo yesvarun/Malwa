@@ -17,7 +17,7 @@ from bs4 import BeautifulSoup
 # ───────── config ─────────
 KEY            = os.environ["ANTHROPIC_API_KEY"]
 MODEL          = "claude-haiku-4-5-20251001"   # cheapest, plenty for summaries
-HOURS_BACK     = 48
+HOURS_BACK     = 24
 MAX_NEW_PER_RUN= 60          # articles Claude reads per run (cost guard)
 BATCH          = 8           # articles per Claude call
 OUT            = "news.json"
@@ -26,7 +26,7 @@ UA = {"User-Agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 "
                     "(KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36"}
 
 def gn(q, hl, ceid):
-    return (f"https://news.google.com/rss/search?q={quote(q + ' when:2d')}"
+    return (f"https://news.google.com/rss/search?q={quote(q + ' when:1d')}"
             f"&hl={hl}&gl=IN&ceid=IN:{ceid}")
 def bing(q):
     return f"https://www.bing.com/news/search?q={quote(q)}&format=rss"
