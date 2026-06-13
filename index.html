@@ -266,7 +266,8 @@ body{
   <button class="chip red" data-k="reg" data-v="bathinda">ਬਠਿੰਡਾ</button>
   <button class="chip red" data-k="reg" data-v="nearby">ਬਰਨਾਲਾ–ਤਪਾ</button>
   <button class="chip red" data-k="reg" data-v="punjab">ਪੰਜਾਬ</button>
-  <button class="chip red" data-k="reg" data-v="opinion">ਰਾਇ · Opinion</button>
+  <button class="chip" data-k="reg" data-v="opinion">ਰਾਇ · Opinion</button>
+  <button class="chip" id="clearall" style="border-style:dashed;margin-left:auto">ਸਭ ਸਾਫ਼ ✕</button>
 </nav>
 
 <main id="feed"></main>
@@ -670,8 +671,18 @@ async function openReader(x){
 }
 
 /* ═════════════ FILTERS / HEALTH / DATELINE ═════════════ */
+document.getElementById("clearall").addEventListener("click", ()=>{
+  const list = visible();
+  if(!list.length){ toast("ਫੀਡ ਪਹਿਲਾਂ ਹੀ ਖਾਲੀ ਹੈ"); return; }
+  if(!confirm("ਇਸ ਫਿਲਟਰ ਦੀਆਂ ਸਾਰੀਆਂ "+list.length+" ਖ਼ਬਰਾਂ ਪੜ੍ਹੀਆਂ ਮੰਨ ਕੇ ਹਟਾ ਦੇਈਏ?\n\nClear all "+list.length+" stories — they will never appear again."))
+    return;
+  list.forEach(x=>markRead(x.id));
+  render(false); feedEl.scrollTop=0;
+  toast("✦ "+list.length+" ਖ਼ਬਰਾਂ ਸਾਫ਼ — ਮੁੜ ਨਹੀਂ ਆਉਣਗੀਆਂ");
+});
+
 document.getElementById("chips").addEventListener("click", e=>{
-  const b = e.target.closest(".chip"); if(!b) return;
+  const b = e.target.closest(".chip"); if(!b || b.id==="clearall") return;
   document.querySelectorAll(`.chip[data-k="${b.dataset.k}"]`).forEach(c=>c.classList.remove("on"));
   b.classList.add("on");
   if(b.dataset.k==="lang") filterLang=b.dataset.v; else filterReg=b.dataset.v;
