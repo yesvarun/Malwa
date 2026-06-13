@@ -265,8 +265,7 @@ body{
   <button class="chip red" data-k="reg" data-v="rampura">ਰਾਮਪੁਰਾ ਫੂਲ</button>
   <button class="chip red" data-k="reg" data-v="bathinda">ਬਠਿੰਡਾ</button>
   <button class="chip red" data-k="reg" data-v="nearby">ਬਰਨਾਲਾ–ਤਪਾ</button>
-  <button class="chip red" data-k="reg" data-v="punjab">ਪੰਜਾਬ</button>
-  <button class="chip" data-k="reg" data-v="opinion">ਰਾਇ · Opinion</button>
+  <button class="chip red" data-k="reg" data-v="opinion">ਰਾਇ · Opinion</button>
   <button class="chip" id="clearall" style="border-style:dashed;margin-left:auto">ਸਭ ਸਾਫ਼ ✕</button>
 </nav>
 
@@ -323,35 +322,41 @@ const bing = q =>
 
 /* every feed: url, lang, region. Bing duplicates key queries because its RSS carries images & real snippets. */
 const FEEDS = [
-  // ── ਪੰਜਾਬੀ ──
+  // ── ਪੰਜਾਬੀ — area only ──
   {u:gn('"ਰਾਮਪੁਰਾ ਫੂਲ"','pa','pa'),                          lang:"pa", region:"rampura"},
   {u:gn('ਬਠਿੰਡਾ','pa','pa'),                                  lang:"pa", region:"bathinda"},
   {u:gn('ਬਰਨਾਲਾ OR ਤਪਾ ਮੰਡੀ','pa','pa'),                      lang:"pa", region:"nearby"},
-  {u:gn('ਤਲਵੰਡੀ ਸਾਬੋ OR ਮੌੜ ਮੰਡੀ OR ਗੋਨਿਆਣਾ OR ਭੁੱਚੋ OR ਰਮਾਣ','pa','pa'), lang:"pa", region:"bathinda"},
-  {u:gn('ਪੰਜਾਬ','pa','pa'),                                   lang:"pa", region:"punjab"},
-  // ── हिन्दी ──
+  {u:gn('ਤਲਵੰਡੀ ਸਾਬੋ OR ਮੌੜ ਮੰਡੀ OR ਗੋਨਿਆਣਾ OR ਭੁੱਚੋ OR ਰਮਾਣ OR ਸੰਗਤ OR ਨਥਾਣਾ OR ਫੂਲ','pa','pa'), lang:"pa", region:"bathinda"},
+  // ── हिन्दी — area only ──
   {u:gn('"रामपुरा फूल"','hi','hi'),                           lang:"hi", region:"rampura"},
   {u:gn('बठिंडा','hi','hi'),                                   lang:"hi", region:"bathinda"},
-  {u:gn('बरनाला OR तपा','hi','hi'),                            lang:"hi", region:"nearby"},
-  {u:gn('पंजाब','hi','hi'),                                    lang:"hi", region:"punjab"},
-  // ── English ──
+  {u:gn('बरनाला OR तपा मंडी','hi','hi'),                       lang:"hi", region:"nearby"},
+  {u:gn('"तलवंडी साबो" OR "मौड़ मंडी" OR गोनियाना OR भुच्चो','hi','hi'), lang:"hi", region:"bathinda"},
+  // ── English — area only ──
   {u:gn('"Rampura Phul"','en-IN','en'),                       lang:"en", region:"rampura"},
-  {u:gn('Bathinda','en-IN','en'),                             lang:"en", region:"bathinda"},
+  {u:gn('Bathinda Punjab','en-IN','en'),                      lang:"en", region:"bathinda"},
   {u:gn('Barnala OR "Tapa Mandi" Punjab','en-IN','en'),       lang:"en", region:"nearby"},
-  {u:gn('"Talwandi Sabo" OR "Maur Mandi" OR Goniana OR "Bhucho Mandi" OR "Rama Mandi" Bathinda','en-IN','en'), lang:"en", region:"bathinda"},
-  {u:gn('Punjab','en-IN','en'),                               lang:"en", region:"punjab"},
-  {u:gn('Punjab editorial OR opinion OR ਲੇਖ','en-IN','en'),   lang:"en", region:"opinion"},
-  // ── Bing (images + snippets) — ENRICH ONLY: Bing fakes dates on old stories, so these never create cards
-  {u:bing('Bathinda'),               lang:"en", region:"bathinda", enrich:true},
+  {u:gn('"Talwandi Sabo" OR "Maur Mandi" OR Goniana OR "Bhucho Mandi" OR Nathana OR Sangat Bathinda','en-IN','en'), lang:"en", region:"bathinda"},
+  // ── Bing (images + snippets) — ENRICH ONLY ──
+  {u:bing('Bathinda Punjab'),        lang:"en", region:"bathinda", enrich:true},
   {u:bing('"Rampura Phul"'),         lang:"en", region:"rampura",  enrich:true},
   {u:bing('Barnala Punjab'),         lang:"en", region:"nearby",   enrich:true},
   {u:bing('बठिंडा'),                  lang:"hi", region:"bathinda", enrich:true},
   {u:bing('ਬਠਿੰਡਾ'),                  lang:"pa", region:"bathinda", enrich:true},
 ];
 
-const REGION_LABEL = {rampura:"ਰਾਮਪੁਰਾ ਫੂਲ", bathinda:"ਬਠਿੰਡਾ", nearby:"ਬਰਨਾਲਾ–ਤਪਾ",
-                      punjab:"ਪੰਜਾਬ", opinion:"ਰਾਇ"};
-const REGION_W = {rampura:40, bathinda:30, nearby:20, punjab:6, opinion:6};
+// hard geo-gate: keep a live story only if it actually names a place in your area
+const GEO_TERMS = ["rampura","phul","bathinda","bhatinda","barnala","tapa","talwandi sabo",
+  "maur","goniana","bhucho","rama mandi","raman","sangat","nathana","dhanaula","mehal kalan","malwa",
+  "ਰਾਮਪੁਰਾ","ਫੂਲ","ਬਠਿੰਡਾ","ਬਰਨਾਲਾ","ਤਪਾ","ਤਲਵੰਡੀ","ਮੌੜ","ਗੋਨਿਆਣਾ","ਭੁੱਚੋ","ਰਮਾਣ","ਸੰਗਤ","ਨਥਾਣਾ","ਧਨੌਲਾ","ਮਾਲਵਾ",
+  "रामपुरा","फूल","बठिंडा","भटिंडा","बरनाला","तपा","तलवंडी","मौड़","गोनियाना","भुच्चो","रामा मंडी","संगत","नथाना","धनौला","मालवा"];
+function inMyArea(x){
+  const blob = ((x.title||"")+" "+(x.summary||"")).toLowerCase();
+  return GEO_TERMS.some(t=>blob.includes(t.toLowerCase()));
+}
+
+const REGION_LABEL = {rampura:"ਰਾਮਪੁਰਾ ਫੂਲ", bathinda:"ਬਠਿੰਡਾ", nearby:"ਬਰਨਾਲਾ–ਤਪਾ", opinion:"ਰਾਇ"};
+const REGION_W = {rampura:40, bathinda:30, nearby:20, opinion:6};
 const ORN = ["❦","✦","❧","✺","☙","✼"];
 
 /* ═════════════ STATE ═════════════ */
@@ -437,13 +442,16 @@ function mergeItems(fresh){
       if(!old.image && f.image) old.image = f.image;
       if(!old.summary && f.summary) old.summary = f.summary;
       if(REGION_W[f.region] > REGION_W[old.region]) old.region = f.region;
-    }else if(!dismissed.has(f.id) && !f.enrich){
+    }else if(!dismissed.has(f.id) && !f.enrich && (f.pref || inMyArea(f))){
       byId.set(f.id,f); added++;
     }
   }
   items = [...byId.values()].sort((a,b)=>{
     const s = (REGION_W[b.region]-REGION_W[a.region]);
-    return s !== 0 ? s : b.date - a.date;
+    if(s !== 0) return s;
+    const ha = (a.summary&&a.summary.length>20)?1:0, hb=(b.summary&&b.summary.length>20)?1:0;
+    if(ha!==hb) return hb-ha;   // digested stories first within a region
+    return b.date - a.date;
   });
   return added;
 }

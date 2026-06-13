@@ -15,11 +15,11 @@ import requests
 from bs4 import BeautifulSoup
 
 # ───────── config ─────────
-KEY            = os.environ["ANTHROPIC_API_KEY"]
+KEY            = os.environ["ANTHROPIC_API_KEY"].strip()
 MODEL          = "claude-haiku-4-5-20251001"   # cheapest, plenty for summaries
 HOURS_BACK     = 24
-MAX_NEW_PER_RUN= 60          # articles Claude reads per run (cost guard)
-BATCH          = 8           # articles per Claude call
+MAX_NEW_PER_RUN= 120         # articles Claude reads per run (cost guard) — local stories prioritized
+BATCH          = 5           # articles per Claude call (smaller = no truncation now we ask for digests)
 OUT            = "news.json"
 CACHE          = "claude_cache.json"
 UA = {"User-Agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 "
@@ -32,34 +32,48 @@ def bing(q):
     return f"https://www.bing.com/news/search?q={quote(q)}&format=rss"
 
 FEEDS = [
-    # ਪੰਜਾਬੀ
+    # ਪੰਜਾਬੀ — only your area
     (gn('"ਰਾਮਪੁਰਾ ਫੂਲ"', "pa", "pa"), "pa", "rampura"),
     (gn("ਬਠਿੰਡਾ", "pa", "pa"), "pa", "bathinda"),
     (gn("ਬਰਨਾਲਾ OR ਤਪਾ ਮੰਡੀ", "pa", "pa"), "pa", "nearby"),
-    (gn("ਤਲਵੰਡੀ ਸਾਬੋ OR ਮੌੜ ਮੰਡੀ OR ਗੋਨਿਆਣਾ OR ਭੁੱਚੋ OR ਰਮਾਣ", "pa", "pa"), "pa", "bathinda"),
-    (gn("ਪੰਜਾਬ", "pa", "pa"), "pa", "punjab"),
-    # हिन्दी
+    (gn("ਤਲਵੰਡੀ ਸਾਬੋ OR ਮੌੜ ਮੰਡੀ OR ਗੋਨਿਆਣਾ OR ਭੁੱਚੋ OR ਰਮਾਣ OR ਸੰਗਤ OR ਨਥਾਣਾ OR ਫੂਲ", "pa", "pa"), "pa", "bathinda"),
+    # हिन्दी — only your area
     (gn('"रामपुरा फूल"', "hi", "hi"), "hi", "rampura"),
     (gn("बठिंडा", "hi", "hi"), "hi", "bathinda"),
-    (gn("बरनाला OR तपा", "hi", "hi"), "hi", "nearby"),
-    (gn("पंजाब", "hi", "hi"), "hi", "punjab"),
-    # English
+    (gn("बरनाला OR तपा मंडी", "hi", "hi"), "hi", "nearby"),
+    (gn('"तलवंडी साबो" OR "मौड़ मंडी" OR गोनियाना OR भुच्चो', "hi", "hi"), "hi", "bathinda"),
+    # English — only your area
     (gn('"Rampura Phul"', "en-IN", "en"), "en", "rampura"),
-    (gn("Bathinda", "en-IN", "en"), "en", "bathinda"),
+    (gn('Bathinda Punjab', "en-IN", "en"), "en", "bathinda"),
     (gn('Barnala OR "Tapa Mandi" Punjab', "en-IN", "en"), "en", "nearby"),
-    (gn('"Talwandi Sabo" OR "Maur Mandi" OR Goniana OR "Bhucho Mandi" Bathinda',
+    (gn('"Talwandi Sabo" OR "Maur Mandi" OR Goniana OR "Bhucho Mandi" OR Nathana OR Sangat Bathinda',
         "en-IN", "en"), "en", "bathinda"),
-    (gn("Punjab", "en-IN", "en"), "en", "punjab"),
-    (gn("Punjab editorial OR opinion", "en-IN", "en"), "en", "opinion"),
-    # Bing (carries images + snippets)
-    (bing("Bathinda"), "en", "bathinda"),
+    # Bing (carries images + snippets) — area only
+    (bing("Bathinda Punjab"), "en", "bathinda"),
     (bing('"Rampura Phul"'), "en", "rampura"),
     (bing("Barnala Punjab"), "en", "nearby"),
     (bing("बठिंडा"), "hi", "bathinda"),
     (bing("ਬਠਿੰਡਾ"), "pa", "bathinda"),
 ]
 
-REGION_W = {"rampura": 40, "bathinda": 30, "nearby": 20, "punjab": 6, "opinion": 6}
+# ── hard geo-gate: a story is kept only if title/snippet mentions one of these ──
+GEO_TERMS = [
+    # English
+    "rampura", "phul", "bathinda", "bhatinda", "barnala", "tapa", "talwandi sabo",
+    "maur", "goniana", "bhucho", "rama mandi", "raman", "sangat", "nathana",
+    "dhanaula", "mehal kalan", "malwa",
+    # ਪੰਜਾਬੀ
+    "ਰਾਮਪੁਰਾ", "ਫੂਲ", "ਬਠਿੰਡਾ", "ਬਰਨਾਲਾ", "ਤਪਾ", "ਤਲਵੰਡੀ ਸਾਬੋ", "ਮੌੜ", "ਗੋਨਿਆਣਾ",
+    "ਭੁੱਚੋ", "ਰਮਾਣ", "ਸੰਗਤ", "ਨਥਾਣਾ", "ਧਨੌਲਾ", "ਮਹਿਲ ਕਲਾਂ", "ਮਾਲਵਾ",
+    # हिन्दी
+    "रामपुरा", "फूल", "बठिंडा", "भटिंडा", "बरनाला", "तपा", "तलवंडी साबो", "मौड़",
+    "गोनियाना", "भुच्चो", "रामा मंडी", "रमन", "संगत", "नथाना", "धनौला", "मालवा",
+]
+def in_my_area(item):
+    blob = (item["title"] + " " + item.get("snippet", "")).lower()
+    return any(t.lower() in blob for t in GEO_TERMS)
+
+REGION_W = {"rampura": 40, "bathinda": 30, "nearby": 20, "opinion": 6}
 
 # ───────── helpers ─────────
 def norm_key(t):
@@ -190,7 +204,7 @@ For EACH article below, return a JSON object with:
 - "i": article number
 - "summary": 50-80 words, factual, neutral, written in the SAME LANGUAGE as the article (Punjabi stays Punjabi in Gurmukhi, Hindi stays Hindi, English stays English). No opinions added, no hype. This is the short card preview.
 - "digest": a richer 4-6 sentence account in the SAME LANGUAGE — the full who/what/where/when/why, every concrete fact, figure, name and place from the article, written cleanly as a proper news brief so the reader needs nothing else. Still neutral, no opinion, no padding.
-- "region": exactly one of "rampura" (Rampura Phul / Phul town / Rampura tehsil villages), "bathinda" (Bathinda city/district incl. Talwandi Sabo, Maur, Goniana, Bhucho, Rama Mandi, Raman, Sangat), "nearby" (Barnala, Tapa, Dhanaula, Mehal Kalan), "opinion" (editorial/op-ed/magazine piece), or "punjab" (everything else).
+- "region": exactly one of "rampura" (Rampura Phul / Phul town / Rampura tehsil villages), "bathinda" (Bathinda city/district incl. Talwandi Sabo, Maur, Goniana, Bhucho, Rama Mandi, Raman, Sangat, Nathana), "nearby" (Barnala, Tapa, Dhanaula, Mehal Kalan), or "opinion" (editorial/op-ed/magazine piece). If unclear, pick the closest of these — never invent other regions.
 - "lang": "pa", "hi" or "en".
 - "fresh": true normally; false ONLY if the text clearly reports events from more than 3 days ago (old dates, last year, anniversary retrospectives, recycled stories).
 
@@ -201,13 +215,32 @@ Respond with ONLY a JSON array, no markdown fences, no preamble.
         "https://api.anthropic.com/v1/messages",
         headers={"x-api-key": KEY, "anthropic-version": "2023-06-01",
                  "content-type": "application/json"},
-        json={"model": MODEL, "max_tokens": 4000,
+        json={"model": MODEL, "max_tokens": 8000,
               "messages": [{"role": "user", "content": prompt}]},
-        timeout=180)
+        timeout=240)
     r.raise_for_status()
     text = "".join(b.get("text", "") for b in r.json()["content"])
     text = re.sub(r"```(json)?", "", text).strip()
-    return json.loads(text)
+    try:
+        return json.loads(text)
+    except Exception:
+        # reply was cut off mid-JSON — salvage every complete {...} object
+        objs = []
+        depth = 0; start = None
+        for i, ch in enumerate(text):
+            if ch == "{":
+                if depth == 0:
+                    start = i
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0 and start is not None:
+                    try:
+                        objs.append(json.loads(text[start:i+1]))
+                    except Exception:
+                        pass
+                    start = None
+        return objs
 
 # ───────── main ─────────
 def main():
@@ -230,25 +263,29 @@ def main():
                         ex["image"] = it["image"]
                     if not ex["snippet"] and it["snippet"]:
                         ex["snippet"] = it["snippet"]
-                    if REGION_W[it["region"]] > REGION_W[ex["region"]]:
+                    if REGION_W.get(it["region"],0) > REGION_W.get(ex["region"],0):
                         ex["region"] = it["region"]
-                elif not it["enrich"]:
+                elif not it["enrich"] and in_my_area(it):
                     pool[it["id"]] = it
             print(f"✓ {lang}/{region}")
         except Exception as e:
             print(f"✗ {lang}/{region}: {e}")
 
-    # carry forward previously printed items still inside the window
+    # carry forward previously printed items still inside the window AND still in-area
     cutoff = datetime.now(timezone.utc) - timedelta(hours=HOURS_BACK)
     for o in old_news:
         try:
-            if datetime.fromisoformat(o["date"]) >= cutoff and o["id"] not in pool:
+            if (datetime.fromisoformat(o["date"]) >= cutoff and o["id"] not in pool
+                    and in_my_area(o)):
                 pool[o["id"]] = o
         except Exception:
             pass
 
-    # 2. which stories has Claude not read yet?
-    fresh = [x for x in pool.values() if md5(x["title"]) not in cache][:MAX_NEW_PER_RUN]
+    # 2. which stories has Claude not read yet? prioritize local + newest
+    unread = [x for x in pool.values() if md5(x["title"]) not in cache]
+    unread.sort(key=lambda x: x["date"], reverse=True)
+    unread.sort(key=lambda x: -REGION_W.get(x["region"], 0))
+    fresh = unread[:MAX_NEW_PER_RUN]
     print(f"{len(pool)} in stock · {len(fresh)} new for Claude to read")
 
     # 3. fetch article text + image, then Claude reads in batches
@@ -275,8 +312,14 @@ def main():
     for i in range(0, len(fresh), BATCH):
         chunk = fresh[i:i + BATCH]
         try:
-            for res in claude_read(chunk):
-                a = chunk[res["i"] - 1]
+            results = claude_read(chunk)
+            for res in results:
+                idx = res.get("i")
+                if not isinstance(idx, int) or idx < 1 or idx > len(chunk):
+                    continue
+                a = chunk[idx - 1]
+                if not res.get("summary"):
+                    continue
                 cache[md5(a["title"])] = {
                     "summary": res.get("summary", ""),
                     "digest": res.get("digest", ""),
@@ -284,7 +327,7 @@ def main():
                     "lang": res.get("lang", a["lang"]),
                     "fresh": res.get("fresh", True),
                 }
-            print(f"  Claude read batch {i//BATCH + 1}")
+            print(f"  Claude read batch {i//BATCH + 1} ({len(results)} ok)")
         except Exception as e:
             print(f"  ✗ batch {i//BATCH + 1}: {e}")
 
