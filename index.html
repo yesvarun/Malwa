@@ -301,7 +301,7 @@ body{
     <div id="r-meta"></div>
     <div id="r-body"></div>
   </div>
-  <div id="r-footer"><button id="r-ext">ਅਖ਼ਬਾਰ ਦੀ ਸਾਈਟ 'ਤੇ ਖੋਲ੍ਹੋ ↗</button></div>
+  <div id="r-footer"><button id="r-ext">ਪੂਰੀ ਖ਼ਬਰ ਅਖ਼ਬਾਰ 'ਤੇ ↗</button></div>
 </div>
 
 <script>
@@ -466,8 +466,7 @@ async function pressRun(initial){
   if(EXTRA_JSON_URL){
     try{
       const r = await fetch(EXTRA_JSON_URL,{cache:"no-store"}); const arr = await r.json();
-      added += mergeItems(arr.map(x=>({ ...x, pref:true, id:x.id||normKey(x.title), date:new Date(x.date) }))
-        .filter(x=>(Date.now()-x.date)<HOURS_BACK*3600e3));
+      added += mergeItems(arr.map(x=>({ ...x, pref:true, id:x.id||normKey(x.title), date:new Date(x.date) }))        .filter(x=>(Date.now()-x.date)<HOURS_BACK*3600e3));
       health["news.json (AI press)"]="OK · "+arr.length+" items";
     }catch(e){ health["news.json (AI press)"]="FAIL · "+e.message; }
   }
@@ -649,6 +648,15 @@ async function openReader(x){
       {weekday:"short", day:"numeric", month:"long", hour:"numeric", minute:"2-digit"});
   document.getElementById("r-ext").onclick = ()=>window.open(x.link,"_blank","noopener");
   const body = document.getElementById("r-body");
+  // Preferred: Claude's clean detailed digest from the press room (instant, no fetch)
+  if(x.digest && x.digest.length > 40){
+    const pic = x.image;
+    const paras = x.digest.split(/\n+|(?<=[।.!?])\s+(?=[A-Zਅ-ੴअ-ह])/).filter(s=>s.trim().length>2);
+    body.innerHTML =
+      (pic ? `<img class="r-img" loading="lazy" src="${pic}" onerror="this.remove()">` : "") +
+      paras.map(p=>"<p>"+p.replace(/&/g,"&amp;").replace(/</g,"&lt;")+"</p>").join("");
+    return;
+  }
   body.innerHTML = '<p class="r-load">✺ ਛਾਪਾ ਲਿਆ ਰਹੇ ਹਾਂ… bringing the full print</p>';
   try{
     let art = readerCache.get(x.id);

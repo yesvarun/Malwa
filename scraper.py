@@ -188,7 +188,8 @@ def claude_read(batch):
     prompt = f"""You are the desk editor of a local newspaper in Rampura Phul, Bathinda district, Punjab.
 For EACH article below, return a JSON object with:
 - "i": article number
-- "summary": 50-80 words, factual, neutral, written in the SAME LANGUAGE as the article (Punjabi stays Punjabi in Gurmukhi, Hindi stays Hindi, English stays English). No opinions added, no hype.
+- "summary": 50-80 words, factual, neutral, written in the SAME LANGUAGE as the article (Punjabi stays Punjabi in Gurmukhi, Hindi stays Hindi, English stays English). No opinions added, no hype. This is the short card preview.
+- "digest": a richer 4-6 sentence account in the SAME LANGUAGE — the full who/what/where/when/why, every concrete fact, figure, name and place from the article, written cleanly as a proper news brief so the reader needs nothing else. Still neutral, no opinion, no padding.
 - "region": exactly one of "rampura" (Rampura Phul / Phul town / Rampura tehsil villages), "bathinda" (Bathinda city/district incl. Talwandi Sabo, Maur, Goniana, Bhucho, Rama Mandi, Raman, Sangat), "nearby" (Barnala, Tapa, Dhanaula, Mehal Kalan), "opinion" (editorial/op-ed/magazine piece), or "punjab" (everything else).
 - "lang": "pa", "hi" or "en".
 - "fresh": true normally; false ONLY if the text clearly reports events from more than 3 days ago (old dates, last year, anniversary retrospectives, recycled stories).
@@ -278,6 +279,7 @@ def main():
                 a = chunk[res["i"] - 1]
                 cache[md5(a["title"])] = {
                     "summary": res.get("summary", ""),
+                    "digest": res.get("digest", ""),
                     "region": res.get("region", a["region"]),
                     "lang": res.get("lang", a["lang"]),
                     "fresh": res.get("fresh", True),
@@ -296,6 +298,7 @@ def main():
             "title": x["title"],
             "link": x["link"],
             "summary": c.get("summary") or x.get("snippet") or x.get("summary", ""),
+            "digest": c.get("digest", ""),
             "image": x.get("image", ""),
             "lang": c.get("lang", x["lang"]),
             "region": c.get("region", x["region"]),
