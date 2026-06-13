@@ -6,6 +6,10 @@
 <meta name="theme-color" content="#efe6d3">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ਮਾਲਵਾ ਗਜ਼ਟ">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>ਮਾਲਵਾ ਗਜ਼ਟ · The Malwa Gazette</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -267,6 +271,7 @@ body{
   <button class="chip red" data-k="reg" data-v="nearby">ਬਰਨਾਲਾ–ਤਪਾ</button>
   <button class="chip red" data-k="reg" data-v="opinion">ਰਾਇ · Opinion</button>
   <button class="chip" id="clearall" style="border-style:dashed;margin-left:auto">ਸਭ ਸਾਫ਼ ✕</button>
+  <button class="chip" id="installbtn" style="display:none;background:var(--blue);color:var(--paper);border-color:var(--blue)" onclick="doInstall()">⤓ ਐਪ</button>
 </nav>
 
 <main id="feed"></main>
@@ -698,7 +703,7 @@ document.getElementById("clearall").addEventListener("click", ()=>{
 });
 
 document.getElementById("chips").addEventListener("click", e=>{
-  const b = e.target.closest(".chip"); if(!b || b.id==="clearall") return;
+  const b = e.target.closest(".chip"); if(!b || b.id==="clearall" || b.id==="installbtn") return;
   document.querySelectorAll(`.chip[data-k="${b.dataset.k}"]`).forEach(c=>c.classList.remove("on"));
   b.classList.add("on");
   if(b.dataset.k==="lang") filterLang=b.dataset.v; else filterReg=b.dataset.v;
@@ -745,6 +750,30 @@ function toast(msg){
     if(n>0){ render(true); toast("✦ "+n+" ਨਵੀਆਂ ਖ਼ਬਰਾਂ ਛਪੀਆਂ"); }
   }, REFRESH_MIN*60*1000);
 })();
+
+/* ═══ PWA: install + offline ═══ */
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+}
+let deferredPrompt=null;
+window.addEventListener("beforeinstallprompt", e=>{
+  e.preventDefault(); deferredPrompt=e;
+  const b=document.getElementById("installbtn"); if(b) b.style.display="inline-block";
+});
+window.addEventListener("appinstalled", ()=>{
+  const b=document.getElementById("installbtn"); if(b) b.style.display="none";
+  toast("✦ ਮਾਲਵਾ ਗਜ਼ਟ ਇੰਸਟਾਲ ਹੋ ਗਿਆ");
+});
+function doInstall(){
+  if(!deferredPrompt){
+    toast("ਮੀਨੂ → 'Add to Home screen' ਦਬਾਓ");
+    return;
+  }
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.finally(()=>{ deferredPrompt=null;
+    const b=document.getElementById("installbtn"); if(b) b.style.display="none"; });
+}
+
 </script>
 </body>
 </html>
