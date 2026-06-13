@@ -188,6 +188,7 @@ body{
 #loader p{font-family:var(--fell);font-style:italic;color:var(--faded);font-size:14px}
 #loader .bar{width:200px;height:5px;border:1px solid var(--ink);border-radius:3px;overflow:hidden}
 #loader .bar i{display:block;height:100%;width:0;background:var(--stamp);transition:width .3s}
+@keyframes fillbar{from{width:0}to{width:100%}}
 #empty{display:none;position:fixed;inset:0;z-index:20;flex-direction:column;gap:10px;
   align-items:center;justify-content:center;text-align:center;padding:40px;color:var(--faded)}
 #empty .orn{font-size:40px;color:var(--gold)}
@@ -283,8 +284,8 @@ body{
   <span class="wheel">✺</span>
   <h2>ਪ੍ਰੈੱਸ ਚੱਲ ਰਹੀ ਹੈ…</h2>
   <p>setting today's edition in type</p>
-  <div class="bar"><i id="loadbar"></i></div>
-  <p id="loadmsg" style="font-size:12px">Jagbani · Ajit · Tribune · Bhaskar · Kesari …</p>
+  <div class="bar"><i id="loadbar" style="width:100%;animation:fillbar 2.4s ease-out"></i></div>
+  <p style="font-size:12px">Jagbani · Ajit · Tribune · Bhaskar · Kesari …</p>
 </div>
 
 <div id="empty">
@@ -461,7 +462,18 @@ function mergeItems(fresh){
   return added;
 }
 
-async function pressRun(initial){
+async function loadEdition(){   // the AI press room file — fast, this is what shows instantly
+  if(!EXTRA_JSON_URL) return 0;
+  try{
+    const r = await fetch(EXTRA_JSON_URL,{cache:"no-store"}); const arr = await r.json();
+    const n = mergeItems(arr.map(x=>({ ...x, pref:true, id:x.id||normKey(x.title), date:new Date(x.date) }))
+      .filter(x=>(Date.now()-x.date)<HOURS_BACK*3600e3));
+    health["news.json (AI press)"]="OK · "+arr.length+" items";
+    return n;
+  }catch(e){ health["news.json (AI press)"]="FAIL · "+e.message; return 0; }
+}
+
+async function pressRun(initial){   // the slow live feeds — run in background
   let done=0, added=0;
   await Promise.all(FEEDS.map(async f=>{
     try{
@@ -471,18 +483,7 @@ async function pressRun(initial){
       added += mergeItems(got);
     }catch(e){ health[f.u] = "FAIL · "+e.message; }
     done++;
-    if(initial){
-      document.getElementById("loadbar").style.width = (done/FEEDS.length*100)+"%";
-      document.getElementById("loadmsg").textContent = done+" / "+FEEDS.length+" presses checked";
-    }
   }));
-  if(EXTRA_JSON_URL){
-    try{
-      const r = await fetch(EXTRA_JSON_URL,{cache:"no-store"}); const arr = await r.json();
-      added += mergeItems(arr.map(x=>({ ...x, pref:true, id:x.id||normKey(x.title), date:new Date(x.date) }))        .filter(x=>(Date.now()-x.date)<HOURS_BACK*3600e3));
-      health["news.json (AI press)"]="OK · "+arr.length+" items";
-    }catch(e){ health["news.json (AI press)"]="FAIL · "+e.message; }
-  }
   return added;
 }
 
@@ -767,14 +768,24 @@ function toast(msg){
 /* ═════════════ BOOT + BACKGROUND PRESS ═════════════ */
 (async function(){
   dateline();
-  await pressRun(true);
+  // safety: never let the loader block more than 3s
+  const killLoader = setTimeout(()=>{
+    document.getElementById("loader").style.display="none"; render(false);
+  }, 3000);
+  // 1. show the AI edition immediately — this is fast
+  await loadEdition();
+  clearTimeout(killLoader);
   document.getElementById("loader").style.display="none";
   render(false);
   setTimeout(()=>{ if(!firstSwipeDone) document.getElementById("hint").style.opacity=1; },1200);
   setTimeout(()=>{ document.getElementById("hint").style.opacity=0; },9000);
+  // 2. then quietly pull live feeds in the background; update if anything new
+  pressRun(true).then(n=>{ if(n>0) render(true); });
+  // 3. keep refreshing both on a timer
   setInterval(async ()=>{
-    const n = await pressRun(false);
-    if(n>0){ render(true); toast("✦ "+n+" ਨਵੀਆਂ ਖ਼ਬਰਾਂ ਛਪੀਆਂ"); }
+    const a = await loadEdition();
+    const b = await pressRun(false);
+    if(a+b>0){ render(true); toast("✦ "+(a+b)+" ਨਵੀਆਂ ਖ਼ਬਰਾਂ ਛਪੀਆਂ"); }
   }, REFRESH_MIN*60*1000);
 })();
 
