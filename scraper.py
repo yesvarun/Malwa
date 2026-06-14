@@ -507,6 +507,7 @@ def main():
             "matched": x.get("matched",""),
             "place": c.get("place","") or x.get("matched",""),
             "topic": c.get("topic",""),
+            "read": bool(c.get("summary")),   # true = Claude read the body, region is real
             "date": x["date"],
             "source": x["source"],
             "id": x["id"],
