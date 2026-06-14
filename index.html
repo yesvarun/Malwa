@@ -107,18 +107,28 @@ body{
   box-shadow:inset 0 0 6px rgba(179,55,43,.12);
 }
 .kicker time{margin-left:auto;font-style:italic;font-family:var(--fell);letter-spacing:.5px}
-.whychip{
-  margin:6px 16px 0;align-self:flex-start;display:inline-block;
+.kwrow{display:flex;flex-wrap:wrap;gap:6px;margin:8px 16px 0}
+.kwchip{
+  display:inline-flex;align-items:center;gap:5px;
   font-family:var(--serif-pa);font-size:11.5px;color:var(--blue);
   background:rgba(44,74,110,.08);border:1px solid rgba(44,74,110,.35);
-  border-radius:11px;padding:2px 10px;letter-spacing:.3px;
+  border-radius:12px;padding:3px 6px 3px 10px;letter-spacing:.3px;
 }
-.lovebtn{
-  font-size:20px;line-height:1;background:none;border:none;cursor:pointer;
-  color:var(--stamp);padding:2px 8px 2px 0;transition:transform .15s;
+.kwchip .kwlike,.kwchip .kwdis{
+  font-size:13px;line-height:1;background:none;border:none;cursor:pointer;
+  padding:1px 3px;border-radius:50%;
 }
-.lovebtn.on{color:var(--stamp)}
-.lovebtn:active{transform:scale(1.4)}
+.kwchip .kwlike{color:#bbb}
+.kwchip .kwlike.on{color:var(--stamp)}
+.kwchip .kwdis{color:#bbb}
+.kwchip .kwlike:active,.kwchip .kwdis:active{transform:scale(1.3)}
+#pendingbar{
+  display:none;position:fixed;z-index:35;left:50%;transform:translateX(-50%);
+  top:calc(env(safe-area-inset-top,0px) + 122px);
+  font-family:var(--serif-pa);font-size:13px;color:var(--paper);
+  background:var(--stamp);border:1.4px solid var(--ink);border-radius:14px;
+  padding:7px 16px;box-shadow:0 4px 14px rgba(0,0,0,.3);cursor:pointer;
+}
 .imgbox{
   margin:10px 14px 0;height:34%;min-height:120px;flex:0 0 auto;
   border:1.3px solid var(--ink);background:var(--paper-deep);
@@ -326,7 +336,7 @@ body{
 "use strict";
 /* ═════════════ CONFIG ═════════════ */
 const HOURS_BACK   = 12;          // only last 12 hours
-const REFRESH_MIN  = 8;           // background re-print interval
+const REFRESH_MIN  = 20;          // background check interval (gentle, non-disruptive)
 const EXTRA_JSON_URL = "news.json"; // AI press room output (GitHub Actions + Claude). Items here carry AI summaries.
 
 const PROXIES = [
@@ -419,15 +429,27 @@ const REGION_LABEL = {rampura:"ਰਾਮਪੁਰਾ ਫੂਲ", bathinda:"ਬ�
 const REGION_W = {rampura:40, bathinda:30, nearby:20, chandigarh:14, opinion:6};
 const MELA_TERMS = ["mela","fair","festival","ਮੇਲਾ","ਮੇਲੇ","ਜੋੜ ਮੇਲਾ","ਤਿਉਹਾਰ","मेला","मेले","जोड़ मेला","त्योहार","fete","carnival"];
 
-/* ═══ love / preference store — boosts similar keywords next time ═══ */
-const loveStore = {
-  get(){ try{ return JSON.parse(localStorage.getItem("mg_love")||"{}"); }catch(e){ return {}; } },
-  set(o){ try{ localStorage.setItem("mg_love", JSON.stringify(o)); }catch(e){} }
+/* ═══ preferences: LIKE (boost) + DISLIKE (hide keyword temporarily, undoable) ═══ */
+const prefStore = {
+  getLove(){ try{ return JSON.parse(localStorage.getItem("mg_love")||"{}"); }catch(e){ return {}; } },
+  setLove(o){ try{ localStorage.setItem("mg_love", JSON.stringify(o)); }catch(e){} },
+  getDislike(){ try{ return JSON.parse(localStorage.getItem("mg_dislike")||"{}"); }catch(e){ return {}; } },
+  setDislike(o){ try{ localStorage.setItem("mg_dislike", JSON.stringify(o)); }catch(e){} }
 };
-let lovedKw = loveStore.get();          // { keyword: count }
-function loveKeyword(kw){ if(!kw) return; lovedKw[kw]=(lovedKw[kw]||0)+1; loveStore.set(lovedKw); }
-function unloveKeyword(kw){ if(!kw||!lovedKw[kw]) return; lovedKw[kw]--; if(lovedKw[kw]<=0) delete lovedKw[kw]; loveStore.set(lovedKw); }
-function loveBoost(x){ const k=x.matched||""; return lovedKw[k] ? lovedKw[k]*100 : 0; }
+let lovedKw = prefStore.getLove();          // { keyword: count }
+let dislikedKw = prefStore.getDislike();    // { keyword: expiryTimestamp }
+const DISLIKE_DAYS = 7;
+{ const now=Date.now();                     // expire old dislikes
+  for(const k in dislikedKw) if(dislikedKw[k] < now) delete dislikedKw[k];
+  prefStore.setDislike(dislikedKw); }
+
+function keysOf(x){ return [ (x.place||"").toLowerCase().trim(), (x.topic||"").toLowerCase().trim() ].filter(Boolean); }
+function likeKey(k){ if(!k) return; lovedKw[k]=(lovedKw[k]||0)+1; prefStore.setLove(lovedKw); }
+function unlikeKey(k){ if(!k||!lovedKw[k]) return; lovedKw[k]--; if(lovedKw[k]<=0) delete lovedKw[k]; prefStore.setLove(lovedKw); }
+function dislikeKey(k){ if(!k) return; dislikedKw[k]=Date.now()+DISLIKE_DAYS*864e5; prefStore.setDislike(dislikedKw); }
+function undislikeKey(k){ if(!k) return; delete dislikedKw[k]; prefStore.setDislike(dislikedKw); }
+function isDisliked(x){ return keysOf(x).some(k=>dislikedKw[k] && dislikedKw[k]>Date.now()); }
+function loveBoost(x){ let s=0; for(const k of keysOf(x)) if(lovedKw[k]) s+=lovedKw[k]*100; return s; }
 const ORN = ["❦","✦","❧","✺","☙","✼"];
 
 /* ═════════════ STATE ═════════════ */
@@ -614,10 +636,28 @@ function ago(d){
   return "ਕੱਲ੍ਹ";
 }
 function visible(){
-  return items.filter(x=>!dismissed.has(x.id)
+  let list = items.filter(x=>!dismissed.has(x.id)
+    && !isDisliked(x)
     && (filterLang==="all"||x.lang===filterLang)
-    && (filterReg==="all"||x.region===filterReg));
+    && (filterReg==="all"||x.region===filterReg)
+    && (!likeFilter || keysOf(x).includes(likeFilter)));
+  // cap Chandigarh to ~20% of what's shown (Kasauli exempt)
+  if(filterReg==="all" && !likeFilter){
+    const isKas = x => ((x.title||"")+(x.summary||"")).toLowerCase().includes("kasauli")
+      || ((x.title||"")+(x.summary||"")).includes("ਕਸੌਲੀ") || ((x.title||"")+(x.summary||"")).includes("कसौली");
+    const non = list.filter(x=>x.region!=="chandigarh" || isKas(x));
+    const chd = list.filter(x=>x.region==="chandigarh" && !isKas(x));
+    const cap = Math.max(2, Math.floor(non.length/4));
+    list = non.concat(chd.slice(0, cap));
+    list.sort((a,b)=>{
+      const lb=loveBoost(b)-loveBoost(a); if(lb) return lb;
+      const s=(REGION_W[b.region]-REGION_W[a.region]); if(s) return s;
+      return b.date-a.date;
+    });
+  }
+  return list;
 }
+let likeFilter = null;   // when set, show only stories with this liked keyword
 function render(keepScroll){
   const y = keepScroll ? feedEl.scrollTop : 0;
   const list = visible();
@@ -630,8 +670,16 @@ function render(keepScroll){
     const c = document.createElement("article");
     c.className = "card lang-"+x.lang; c.dataset.id = x.id;
     const orn = ORN[(x.id.length+i)%ORN.length];
-    const kw = matchedKeyword(x);
-    const loved = kw && lovedKw[kw];
+    let place = (x.place||"").trim();
+    let topic = (x.topic||"").trim();
+    if(!place){ place = REGION_LABEL[x.region] || ""; }   // fallback for live, not-yet-read stories
+    if(!topic){ const k=matchedKeyword(x); if(k && k!==place.toLowerCase()) topic=k; }
+    const chip = (label, kw, icon) => kw ? `
+      <span class="kwchip" data-kw="${kw.toLowerCase()}">
+        ${icon} ${kw}
+        <button class="kwlike${lovedKw[kw.toLowerCase()]?" on":""}" data-kw="${kw.toLowerCase()}" title="ਪਸੰਦ">♥</button>
+        <button class="kwdis" data-kw="${kw.toLowerCase()}" title="ਨਾਪਸੰਦ">✕</button>
+      </span>` : "";
     c.innerHTML = `
       <div class="kicker">
         <span class="regiontag">${REGION_LABEL[x.region]||x.region}</span>
@@ -647,10 +695,9 @@ function render(keepScroll){
       </div>
       <h2 class="headline">${x.title}</h2>
       <div class="rule">❦</div>
-      <p class="summary">${x.summary || "ਪੂਰੀ ਖ਼ਬਰ ਪੜ੍ਹਨ ਲਈ ਹੇਠਾਂ ਬਟਨ ਦਬਾਓ — ਸਿੱਧਾ ਅਖ਼ਬਾਰ ਦੇ ਪੰਨੇ 'ਤੇ ਪੁੱਜੋਗੇ।"}</p>
-      ${kw ? `<div class="whychip">📍 ${kw}${loved?" · ♥ ਪਸੰਦ":""}</div>` : ""}
+      <p class="summary">${x.summary || "ਪੂਰੀ ਖ਼ਬਰ ਪੜ੍ਹਨ ਲਈ ਹੇਠਾਂ ਬਟਨ ਦਬਾਓ।"}</p>
+      <div class="kwrow">${chip("place",place,"📍")}${chip("topic",topic,"🏷️")}</div>
       <div class="cardfoot">
-        <button class="lovebtn${loved?" on":""}" title="ਇਹੋ ਜਿਹੀਆਂ ਹੋਰ ਖ਼ਬਰਾਂ">${loved?"♥":"♡"}</button>
         <span class="srcname">${x.source}</span>
         <button class="readbtn">ਪੂਰੀ ਖ਼ਬਰ ਪੜ੍ਹੋ →</button>
       </div>
@@ -658,14 +705,18 @@ function render(keepScroll){
     c.querySelector(".readbtn").addEventListener("click", ev=>{
       ev.stopPropagation(); openReader(x);
     });
-    c.querySelector(".lovebtn").addEventListener("click", ev=>{
-      ev.stopPropagation();
-      const btn = ev.currentTarget;
-      if(lovedKw[kw]){ unloveKeyword(kw); btn.classList.remove("on"); btn.textContent="♡";
-        toast("♡ '"+kw+"' ਹਟਾਇਆ"); }
-      else { loveKeyword(kw); btn.classList.add("on"); btn.textContent="♥";
-        toast("♥ '"+kw+"' ਪਸੰਦ — ਹੋਰ ਇਹੋ ਜਿਹੀਆਂ ਖ਼ਬਰਾਂ ਉੱਪਰ ਆਉਣਗੀਆਂ"); }
-    });
+    c.querySelectorAll(".kwlike").forEach(btn=>btn.addEventListener("click", ev=>{
+      ev.stopPropagation(); const k=btn.dataset.kw;
+      if(lovedKw[k]){ unlikeKey(k); btn.classList.remove("on"); toast("♡ '"+k+"' ਹਟਾਇਆ"); }
+      else { likeKey(k); btn.classList.add("on"); toast("♥ '"+k+"' ਪਸੰਦ — ਹੋਰ ਇਹੋ ਜਿਹੀਆਂ ਉੱਪਰ ਆਉਣਗੀਆਂ"); }
+      render(true);
+    }));
+    c.querySelectorAll(".kwdis").forEach(btn=>btn.addEventListener("click", ev=>{
+      ev.stopPropagation(); const k=btn.dataset.kw;
+      dislikeKey(k);
+      toast("✕ '"+k+"' ਲੁਕਾਇਆ — ਵਾਪਸ ਲਿਆਉਣ ਲਈ ਦਬਾਓ", ()=>{ undislikeKey(k); render(true); });
+      render(true);
+    }));
     attachSwipe(c, w, x);
     w.appendChild(c); frag.appendChild(w);
   });
@@ -840,9 +891,13 @@ function dateline(){
   document.getElementById("dl-pa").textContent = pa;
 }
 
-function toast(msg){
-  const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show");
-  setTimeout(()=>t.classList.remove("show"),2600);
+function toast(msg, undoFn){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.classList.add("show");
+  t.onclick = undoFn ? ()=>{ undoFn(); t.classList.remove("show"); t.onclick=null; } : null;
+  t.style.cursor = undoFn ? "pointer" : "";
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>{ t.classList.remove("show"); t.onclick=null; }, undoFn?5000:2600);
 }
 
 /* ═════════════ BOOT + BACKGROUND PRESS ═════════════ */
@@ -859,15 +914,32 @@ function toast(msg){
   render(false);
   setTimeout(()=>{ if(!firstSwipeDone) document.getElementById("hint").style.opacity=1; },1200);
   setTimeout(()=>{ document.getElementById("hint").style.opacity=0; },9000);
-  // 2. then quietly pull live feeds in the background; update if anything new
-  pressRun(true).then(n=>{ if(n>0) render(true); });
-  // 3. keep refreshing both on a timer
+  // 2. then quietly pull live feeds in the background; only render if the feed is empty
+  pressRun(true).then(n=>{ if(n>0 && visible().length===0) render(false); else if(n>0) flagPending(); });
+  // 3. keep checking on a timer — but NEVER re-render under the reader's finger
   setInterval(async ()=>{
     const a = await loadEdition();
     const b = await pressRun(false);
-    if(a+b>0){ render(true); toast("✦ "+(a+b)+" ਨਵੀਆਂ ਖ਼ਬਰਾਂ ਛਪੀਆਂ"); }
+    if(a+b>0){
+      if(visible().length===0) render(false);   // feed empty → safe to show now
+      else flagPending();                         // reading → just offer, don't disrupt
+    }
   }, REFRESH_MIN*60*1000);
 })();
+
+/* show a gentle "new stories — tap to load" bar instead of yanking the feed */
+let pendingShown=false;
+function flagPending(){
+  if(pendingShown) return; pendingShown=true;
+  let bar=document.getElementById("pendingbar");
+  if(!bar){
+    bar=document.createElement("button"); bar.id="pendingbar";
+    bar.textContent="✦ ਨਵੀਆਂ ਖ਼ਬਰਾਂ — ਦਬਾਓ";
+    bar.onclick=()=>{ render(false); feedEl.scrollTop=0; bar.remove(); pendingShown=false; };
+    document.body.appendChild(bar);
+  }
+  bar.style.display="block";
+}
 
 /* ═══ PWA: install + offline ═══ */
 if("serviceWorker" in navigator){

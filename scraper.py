@@ -18,7 +18,7 @@ from bs4 import BeautifulSoup
 KEY            = os.environ["ANTHROPIC_API_KEY"].strip()
 MODEL          = "claude-haiku-4-5-20251001"   # cheapest, plenty for summaries
 HOURS_BACK     = 12
-MAX_NEW_PER_RUN= 200         # read plenty of new local stories each run
+MAX_NEW_PER_RUN= 40          # cap Claude reads per run so it stays fast; backlog fills over a few runs
 BATCH          = 5           # articles per Claude call (smaller = no truncation now we ask for digests)
 OUT            = "news.json"
 CACHE          = "claude_cache.json"
@@ -62,10 +62,9 @@ FEEDS = [
     # major Punjabi papers' Bathinda/Malwa coverage by site
     (gn("ਬਠਿੰਡਾ site:ptcnews.tv OR site:jagbani.punjabkesari.in", "pa", "pa"), "pa", "bathinda"),
     (gn("ਬਰਨਾਲਾ ਖ਼ਬਰਾਂ", "pa", "pa"), "pa", "nearby"),
-    # Chandigarh + Kasauli (your liked places)
-    (gn("ਚੰਡੀਗੜ੍ਹ", "pa", "pa"), "pa", "chandigarh"),
-    (gn("चंडीगढ़ OR कसौली", "hi", "hi"), "hi", "chandigarh"),
-    (gn("Chandigarh OR Kasauli", "en-IN", "en"), "en", "chandigarh"),
+    # Chandigarh + Kasauli — ONLY mela/fair/festival news (you like these), not all city news
+    (gn('चंडीगढ़ मेला OR कसौली मेला OR कसौली', "hi", "hi"), "hi", "chandigarh"),
+    (gn('"Chandigarh" mela OR fair OR festival OR Kasauli', "en-IN", "en"), "en", "chandigarh"),
     # mela / fair — from Punjab + Chandigarh (your standing interest)
     (gn("ਮੇਲਾ ਪੰਜਾਬ OR ਜੋੜ ਮੇਲਾ", "pa", "pa"), "pa", "nearby"),
     (gn("मेला पंजाब OR चंडीगढ़ मेला", "hi", "hi"), "hi", "chandigarh"),
@@ -136,27 +135,34 @@ def detect_region(item, fallback):
             return reg
     return fallback
 
+CITY_MELA_ONLY = ["chandigarh","ਚੰਡੀਗੜ੍ਹ","चंडीगढ़"]   # Chandigarh: keep only if mela/fair
+KASAULI = ["kasauli","ਕਸੌਲੀ","कसौली"]                   # Kasauli: always allowed (rare)
 def in_my_area(item):
     blob = (item.get("title","") + " " + item.get("snippet","")).lower()
-    # 1. explicit far-off / market-rate / Himachal in the text → always reject
     if any(b in blob for b in BLOCK_TERMS):
         return False
-    # 2. names a local town → keep
-    if any(_wordmatch(t.lower(), blob) for t in GEO_TERMS):
+    has_mela = any(_wordmatch(t.lower(), blob) for t in MELA_TERMS)
+    # Kasauli → always keep
+    if any(_wordmatch(t.lower(), blob) for t in KASAULI):
         return True
-    # 2b. mela / fair / festival news from Punjab or Chandigarh → always welcome
-    if any(_wordmatch(t.lower(), blob) for t in MELA_TERMS):
+    # home towns (Rampura/Bathinda/Barnala area) → always keep
+    HOME = [t for t in GEO_TERMS if t.lower() not in
+            [c.lower() for c in CITY_MELA_ONLY+KASAULI]]
+    if any(_wordmatch(t.lower(), blob) for t in HOME):
         return True
-    # 3. neither: the feed that found it already searched for your town.
-    #    Google News often returns EMPTY snippets, so absence of a town name
-    #    is not proof it's far-off. Trust the targeted feed and KEEP it,
-    #    UNLESS the title clearly reads as state/national-level news.
+    # mela / fair anywhere in scope → keep
+    if has_mela:
+        return True
+    # Chandigarh without mela → reject (prevents whole-city flood)
+    if any(_wordmatch(t.lower(), blob) for t in CITY_MELA_ONLY):
+        return False
+    # neutral local-feed story, empty snippet → keep unless state-level
     STATE_HINTS = ["ਮੁੱਖ ਮੰਤਰੀ","मुख्यमंत्री","chief minister",
                    "ਭਗਵੰਤ ਮਾਨ","भगवंत मान","bhagwant mann","ਸਰਕਾਰ","सरकार","cabinet",
                    "ਮੌਸਮ","मौसम","weather","ਵਿਧਾਨ ਸਭਾ","विधानसभा","lok sabha","ਲੋਕ ਸਭਾ"]
     if any(h in blob for h in STATE_HINTS):
-        return False     # looks like state/national news, not local
-    return True          # neutral local-feed story with empty snippet → keep
+        return False
+    return True
 
 # mela / fair / festival terms — these stories are always welcome from Punjab + Chandigarh
 MELA_TERMS = ["mela","fair","festival","ਮੇਲਾ","ਮੇਲੇ","ਜੋੜ ਮੇਲਾ","ਤਿਉਹਾਰ",
@@ -312,6 +318,8 @@ For EACH article below, return a JSON object with:
 - "region": exactly one of "rampura" (Rampura Phul / Phul town / Rampura tehsil villages), "bathinda" (Bathinda city/district incl. Talwandi Sabo, Maur, Goniana, Bhucho, Rama Mandi, Raman, Sangat, Nathana), "nearby" (Barnala, Tapa, Dhanaula, Mehal Kalan), or "opinion" (editorial/op-ed/magazine piece). If unclear, pick the closest of these — never invent other regions.
 - "lang": "pa", "hi" or "en".
 - "fresh": true normally; false ONLY if the text clearly reports events from more than 3 days ago (old dates, last year, anniversary retrospectives, recycled stories).
+- "place": the single specific place the story is mainly about, taken from the article matter (e.g. "Rampura Phul", "Bathinda", "Talwandi Sabo", "Barnala", "Kasauli", "Chandigarh", or a village name). Use the same script as the article. One short place name only.
+- "topic": one short topic word for the story, in the SAME LANGUAGE (e.g. ਮੇਲਾ/मेला/mela, ਹਾਦਸਾ/हादसा/accident, ਸਕੂਲ/स्कूल/school, ਰਾਜਨੀਤੀ/राजनीति/politics, ਖੇਤੀ/खेती/farming, ਖੇਡ/खेल/sports, ਅਪਰਾਧ/अपराध/crime, ਸਿਹਤ/स्वास्थ्य/health, ਧਰਮ/धर्म/religion, ਮੌਸਮ/मौसम/weather, ਵਿਕਾਸ/विकास/development). Pick the best single fit from the article matter.
 
 Respond with ONLY a JSON array, no markdown fences, no preamble.
 
@@ -414,25 +422,31 @@ def main():
     fresh = unread[:MAX_NEW_PER_RUN]
     print(f"{len(pool)} in stock · {len(fresh)} new for Claude to read")
 
-    # 3. fetch article text + image, then Claude reads in batches
-    for x in fresh:
-        text, og_img, real, page_date = grab_article(x)
-        x["text"] = text
-        if og_img and not x.get("image"):
-            x["image"] = og_img
-        if real and "news.google." not in real:
-            x["link"] = real
-        if page_date:  # the article page itself knows its true date
-            try:
-                pd = datetime.fromisoformat(page_date.replace("Z", "+00:00").replace(" ", "T"))
-                if pd.tzinfo is None:
-                    pd = pd.replace(tzinfo=timezone.utc)
-                if pd < cutoff:
-                    x["drop"] = True   # feed lied — story is old
-                else:
-                    x["date"] = pd.isoformat()
-            except Exception:
-                pass
+    # 3. fetch article text + image IN PARALLEL (was one-by-one — the slow part)
+    from concurrent.futures import ThreadPoolExecutor
+    def enrich(x):
+        try:
+            text, og_img, real, page_date = grab_article(x)
+            x["text"] = text
+            if og_img and not x.get("image"):
+                x["image"] = og_img
+            if real and "news.google." not in real:
+                x["link"] = real
+            if page_date:
+                try:
+                    pd = datetime.fromisoformat(page_date.replace("Z","+00:00").replace(" ","T"))
+                    if pd.tzinfo is None:
+                        pd = pd.replace(tzinfo=timezone.utc)
+                    if pd < cutoff:
+                        x["drop"] = True
+                    else:
+                        x["date"] = pd.isoformat()
+                except Exception:
+                    pass
+        except Exception:
+            x["text"] = x.get("snippet","")   # fetch failed → fall back to snippet
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        list(pool.map(enrich, fresh))
     fresh = [x for x in fresh if not x.get("drop")]
 
     for i in range(0, len(fresh), BATCH):
@@ -452,6 +466,8 @@ def main():
                     "region": res.get("region", a["region"]),
                     "lang": res.get("lang", a["lang"]),
                     "fresh": res.get("fresh", True),
+                    "place": (res.get("place") or "").strip(),
+                    "topic": (res.get("topic") or "").strip(),
                     "date": a["date"],
                 }
             print(f"  Claude read batch {i//BATCH + 1} ({len(results)} ok)")
@@ -473,11 +489,24 @@ def main():
             "lang": c.get("lang", x["lang"]),
             "region": c.get("region", x["region"]),
             "matched": x.get("matched",""),
+            "place": c.get("place","") or x.get("matched",""),
+            "topic": c.get("topic",""),
             "date": x["date"],
             "source": x["source"],
             "id": x["id"],
         })
     edition.sort(key=lambda e: (-REGION_W.get(e["region"], 0), e["date"]), reverse=False)
+    edition.sort(key=lambda e: e["date"], reverse=True)
+    edition.sort(key=lambda e: -REGION_W.get(e["region"], 0))
+
+    # cap Chandigarh to ~20% of the edition; Kasauli always allowed (rare anyway)
+    def is_kasauli(e):
+        b = (e["title"]+" "+e.get("summary","")).lower()
+        return "kasauli" in b or "ਕਸੌਲੀ" in b or "कसौली" in b
+    non_chd = [e for e in edition if e["region"] != "chandigarh" or is_kasauli(e)]
+    chd     = [e for e in edition if e["region"] == "chandigarh" and not is_kasauli(e)]
+    cap = max(2, len(non_chd) // 4)        # chandigarh ≤ ~20% of total
+    edition = non_chd + chd[:cap]
     edition.sort(key=lambda e: e["date"], reverse=True)
     edition.sort(key=lambda e: -REGION_W.get(e["region"], 0))
 
