@@ -358,7 +358,13 @@ const GEO_TERMS = ["rampura","phul","bathinda","bhatinda","barnala","tapa","talw
   "रामपुरा","फूल","बठिंडा","भटिंडा","बरनाला","तपा","तलवंडी","मौड़","गोनियाना","भुच्चो","रामा मंडी","संगत","नथाना","धनौला","मालवा"];
 function inMyArea(x){
   const blob = ((x.title||"")+" "+(x.summary||"")).toLowerCase();
-  return GEO_TERMS.some(t=>blob.includes(t.toLowerCase()));
+  if(GEO_TERMS.some(t=>blob.includes(t.toLowerCase()))) return true;
+  const FAR = ["amritsar","jalandhar","ludhiana","patiala","mohali","chandigarh","gurdaspur",
+    "hoshiarpur","kapurthala","pathankot","firozpur","fazilka","moga",
+    "अमृतसर","जालंधर","लुधियाना","पटियाला","मोहाली","चंडीगढ़","फिरोजपुर","मोगा",
+    "ਅੰਮ੍ਰਿਤਸਰ","ਜਲੰਧਰ","ਲੁਧਿਆਣਾ","ਪਟਿਆਲਾ","ਮੋਹਾਲੀ","ਚੰਡੀਗੜ੍ਹ","ਫ਼ਿਰੋਜ਼ਪੁਰ","ਮੋਗਾ"];
+  if(FAR.some(f=>blob.includes(f))) return false;
+  return true;   // targeted feed, empty snippet → keep
 }
 
 const REGION_LABEL = {rampura:"ਰਾਮਪੁਰਾ ਫੂਲ", bathinda:"ਬਠਿੰਡਾ", nearby:"ਬਰਨਾਲਾ–ਤਪਾ", opinion:"ਰਾਇ"};

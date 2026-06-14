@@ -70,8 +70,21 @@ GEO_TERMS = [
     "गोनियाना", "भुच्चो", "रामा मंडी", "रमन", "संगत", "नथाना", "धनौला", "मालवा",
 ]
 def in_my_area(item):
-    blob = (item["title"] + " " + item.get("snippet", "")).lower()
-    return any(t.lower() in blob for t in GEO_TERMS)
+    # every feed query already targets your towns, so a story from a region feed
+    # is in-area by definition. Only reject if it clearly names a FAR-OFF city
+    # and none of your towns. This stops over-blocking real local news.
+    blob = (item.get("title","") + " " + item.get("snippet","")).lower()
+    if any(t.lower() in blob for t in GEO_TERMS):
+        return True
+    # no local term found in the (often empty) snippet — reject only if a far city is named
+    FAR = ["amritsar","jalandhar","ludhiana","patiala","mohali","chandigarh","gurdaspur",
+           "hoshiarpur","kapurthala","pathankot","firozpur","fazilka","moga","sangrur city",
+           "अमृतसर","जालंधर","लुधियाना","पटियाला","मोहाली","चंडीगढ़","फिरोजपुर","मोगा",
+           "ਅੰਮ੍ਰਿਤਸਰ","ਜਲੰਧਰ","ਲੁਧਿਆਣਾ","ਪਟਿਆਲਾ","ਮੋਹਾਲੀ","ਚੰਡੀਗੜ੍ਹ","ਫ਼ਿਰੋਜ਼ਪੁਰ","ਮੋਗਾ"]
+    if any(f in blob for f in FAR):
+        return False
+    # snippet empty / ambiguous → trust the targeted feed and KEEP it
+    return True
 
 REGION_W = {"rampura": 40, "bathinda": 30, "nearby": 20, "opinion": 6}
 
