@@ -351,20 +351,39 @@ const FEEDS = [
   {u:bing('ਬਠਿੰਡਾ'),                  lang:"pa", region:"bathinda", enrich:true},
 ];
 
-// hard geo-gate: keep a live story only if it actually names a place in your area
-const GEO_TERMS = ["rampura","phul","bathinda","bhatinda","barnala","tapa","talwandi sabo",
-  "maur","goniana","bhucho","rama mandi","raman","sangat","nathana","dhanaula","mehal kalan","malwa",
-  "ਰਾਮਪੁਰਾ","ਫੂਲ","ਬਠਿੰਡਾ","ਬਰਨਾਲਾ","ਤਪਾ","ਤਲਵੰਡੀ","ਮੌੜ","ਗੋਨਿਆਣਾ","ਭੁੱਚੋ","ਰਮਾਣ","ਸੰਗਤ","ਨਥਾਣਾ","ਧਨੌਲਾ","ਮਾਲਵਾ",
-  "रामपुरा","फूल","बठिंडा","भटिंडा","बरनाला","तपा","तलवंडी","मौड़","गोनियाना","भुच्चो","रामा मंडी","संगत","नथाना","धनौला","मालवा"];
+// strong local terms — a whole-word match means it's really your area
+const GEO_TERMS = ["rampura phul","rampura","phul","bathinda","bhatinda","barnala","talwandi sabo",
+  "maur mandi","goniana","bhucho","rama mandi","nathana","dhanaula","mehal kalan","maharaj","kot fatta","chathewala",
+  "ਰਾਮਪੁਰਾ ਫੂਲ","ਰਾਮਪੁਰਾ","ਫੂਲ","ਬਠਿੰਡਾ","ਬਰਨਾਲਾ","ਤਲਵੰਡੀ ਸਾਬੋ","ਮੌੜ ਮੰਡੀ","ਗੋਨਿਆਣਾ","ਭੁੱਚੋ","ਨਥਾਣਾ","ਧਨੌਲਾ","ਮਹਿਲ ਕਲਾਂ","ਮਹਿਰਾਜ","ਕੋਟ ਫੱਤਾ","ਚੱਠੇਵਾਲਾ",
+  "रामपुरा फूल","रामपुरा","फूल","बठिंडा","भटिंडा","बरनाला","तलवंडी साबो","मौड़ मंडी","गोनियाना","भुच्चो","नथाना","धनौला","महिराज","कोट फत्ता"];
+// these mean it's NOT your area (Himachal Mandi, market rates, far cities)
+const BLOCK_TERMS = ["mandi himachal","himachal","mandi district","mandi seat","mandi lok sabha",
+  "हिमाचल","मंडी जिला","ਹਿਮਾਚਲ","mandi bhav","mandi rate","market rate","मंडी भाव","मंडी रेट","भाव","ਮੰਡੀ ਭਾਅ",
+  "amritsar","jalandhar","ludhiana","patiala","mohali","chandigarh","gurdaspur","hoshiarpur",
+  "kapurthala","pathankot","firozpur","fazilka","moga",
+  "अमृतसर","जालंधर","लुधियाना","पटियाला","मोहाली","चंडीगढ़","फिरोजपुर","मोगा",
+  "ਅੰਮ੍ਰਿਤਸਰ","ਜਲੰਧਰ","ਲੁਧਿਆਣਾ","ਪਟਿਆਲਾ","ਮੋਹਾਲੀ","ਚੰਡੀਗੜ੍ਹ","ਫ਼ਿਰੋਜ਼ਪੁਰ","ਮੋਗਾ"];
+function wordMatch(term, blob){
+  return new RegExp("(^|[\\s,.\\-–—:;\"'(])"+term.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"($|[\\s,.\\-–—:;\"')])").test(blob);
+}
 function inMyArea(x){
   const blob = ((x.title||"")+" "+(x.summary||"")).toLowerCase();
-  if(GEO_TERMS.some(t=>blob.includes(t.toLowerCase()))) return true;
-  const FAR = ["amritsar","jalandhar","ludhiana","patiala","mohali","chandigarh","gurdaspur",
-    "hoshiarpur","kapurthala","pathankot","firozpur","fazilka","moga",
-    "अमृतसर","जालंधर","लुधियाना","पटियाला","मोहाली","चंडीगढ़","फिरोजपुर","मोगा",
-    "ਅੰਮ੍ਰਿਤਸਰ","ਜਲੰਧਰ","ਲੁਧਿਆਣਾ","ਪਟਿਆਲਾ","ਮੋਹਾਲੀ","ਚੰਡੀਗੜ੍ਹ","ਫ਼ਿਰੋਜ਼ਪੁਰ","ਮੋਗਾ"];
-  if(FAR.some(f=>blob.includes(f))) return false;
-  return true;   // targeted feed, empty snippet → keep
+  if(BLOCK_TERMS.some(b=>blob.includes(b))) return false;
+  return GEO_TERMS.some(t=>wordMatch(t.toLowerCase(), blob));
+}
+// tag a story by the town it actually names (not which feed found it)
+const REGION_TOWNS = {
+  rampura:["rampura phul","rampura","phul","maharaj","kot fatta","chathewala",
+    "ਰਾਮਪੁਰਾ ਫੂਲ","ਰਾਮਪੁਰਾ","ਫੂਲ","ਮਹਿਰਾਜ","ਕੋਟ ਫੱਤਾ","ਚੱਠੇਵਾਲਾ","रामपुरा फूल","रामपुरा","फूल","महिराज","कोट फत्ता"],
+  nearby:["barnala","tapa","dhanaula","mehal kalan","ਬਰਨਾਲਾ","ਤਪਾ","ਧਨੌਲਾ","ਮਹਿਲ ਕਲਾਂ","बरनाला","तपा","धनौला"],
+  bathinda:["bathinda","bhatinda","talwandi sabo","maur mandi","goniana","bhucho","rama mandi","nathana",
+    "ਬਠਿੰਡਾ","ਤਲਵੰਡੀ ਸਾਬੋ","ਮੌੜ ਮੰਡੀ","ਗੋਨਿਆਣਾ","ਭੁੱਚੋ","ਨਥਾਣਾ","बठिंडा","भटिंडा","तलवंडी साबो","मौड़ मंडी","गोनियाना","भुच्चो","नथाना"]
+};
+function detectRegion(x, fallback){
+  const blob = ((x.title||"")+" "+(x.summary||"")).toLowerCase();
+  for(const reg of ["rampura","bathinda","nearby"])
+    if(REGION_TOWNS[reg].some(t=>wordMatch(t.toLowerCase(), blob))) return reg;
+  return fallback;
 }
 
 const REGION_LABEL = {rampura:"ਰਾਮਪੁਰਾ ਫੂਲ", bathinda:"ਬਠਿੰਡਾ", nearby:"ਬਰਨਾਲਾ–ਤਪਾ", opinion:"ਰਾਇ"};
@@ -455,6 +474,7 @@ function mergeItems(fresh){
       if(!old.summary && f.summary) old.summary = f.summary;
       if(REGION_W[f.region] > REGION_W[old.region]) old.region = f.region;
     }else if(!dismissed.has(f.id) && !f.enrich && (f.pref || inMyArea(f))){
+      if(!f.pref) f.region = detectRegion(f, f.region);  // tag by town named
       byId.set(f.id,f); added++;
     }
   }

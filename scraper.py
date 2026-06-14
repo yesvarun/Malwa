@@ -34,57 +34,92 @@ def bing(q):
 FEEDS = [
     # ਪੰਜਾਬੀ — only your area
     (gn('"ਰਾਮਪੁਰਾ ਫੂਲ"', "pa", "pa"), "pa", "rampura"),
-    (gn("ਬਠਿੰਡਾ", "pa", "pa"), "pa", "bathinda"),
-    (gn("ਬਰਨਾਲਾ OR ਤਪਾ ਮੰਡੀ", "pa", "pa"), "pa", "nearby"),
-    (gn("ਤਲਵੰਡੀ ਸਾਬੋ OR ਮੌੜ ਮੰਡੀ OR ਗੋਨਿਆਣਾ OR ਭੁੱਚੋ OR ਰਮਾਣ OR ਸੰਗਤ OR ਨਥਾਣਾ OR ਫੂਲ", "pa", "pa"), "pa", "bathinda"),
+    (gn("ਬਠਿੰਡਾ ਪੰਜਾਬ", "pa", "pa"), "pa", "bathinda"),
+    (gn("ਬਰਨਾਲਾ ਪੰਜਾਬ OR ਤਪਾ ਮੰਡੀ ਬਰਨਾਲਾ", "pa", "pa"), "pa", "nearby"),
+    (gn("ਤਲਵੰਡੀ ਸਾਬੋ OR ਮੌੜ ਮੰਡੀ OR ਗੋਨਿਆਣਾ OR ਭੁੱਚੋ OR ਨਥਾਣਾ", "pa", "pa"), "pa", "bathinda"),
     # हिन्दी — only your area
     (gn('"रामपुरा फूल"', "hi", "hi"), "hi", "rampura"),
-    (gn("बठिंडा", "hi", "hi"), "hi", "bathinda"),
-    (gn("बरनाला OR तपा मंडी", "hi", "hi"), "hi", "nearby"),
+    (gn("बठिंडा पंजाब", "hi", "hi"), "hi", "bathinda"),
+    (gn("बरनाला पंजाब OR तपा मंडी बरनाला", "hi", "hi"), "hi", "nearby"),
     (gn('"तलवंडी साबो" OR "मौड़ मंडी" OR गोनियाना OR भुच्चो', "hi", "hi"), "hi", "bathinda"),
     # English — only your area
     (gn('"Rampura Phul"', "en-IN", "en"), "en", "rampura"),
-    (gn('Bathinda Punjab', "en-IN", "en"), "en", "bathinda"),
-    (gn('Barnala OR "Tapa Mandi" Punjab', "en-IN", "en"), "en", "nearby"),
-    (gn('"Talwandi Sabo" OR "Maur Mandi" OR Goniana OR "Bhucho Mandi" OR Nathana OR Sangat Bathinda',
+    (gn('Bathinda Punjab -Mandi', "en-IN", "en"), "en", "bathinda"),
+    (gn('Barnala Punjab OR "Tapa Mandi" Barnala', "en-IN", "en"), "en", "nearby"),
+    (gn('"Talwandi Sabo" OR "Maur Mandi" OR Goniana OR "Bhucho Mandi" OR Nathana Bathinda',
         "en-IN", "en"), "en", "bathinda"),
     # Bing (carries images + snippets) — area only
     (bing("Bathinda Punjab"), "en", "bathinda"),
     (bing('"Rampura Phul"'), "en", "rampura"),
     (bing("Barnala Punjab"), "en", "nearby"),
-    (bing("बठिंडा"), "hi", "bathinda"),
+    (bing("बठिंडा पंजाब"), "hi", "bathinda"),
     (bing("ਬਠਿੰਡਾ"), "pa", "bathinda"),
+    # extra village / tehsil coverage so the small area has enough real news
+    (gn("ਫੂਲ OR ਜੋਧਪੁਰ ਪਾਖਰ OR ਚੱਠੇਵਾਲਾ OR ਮਹਿਰਾਜ OR ਕੋਟ ਫੱਤਾ ਬਠਿੰਡਾ", "pa", "pa"), "pa", "rampura"),
+    (gn("रामपुरा फूल OR महिराज OR कोट फत्ता बठिंडा", "hi", "hi"), "hi", "rampura"),
+    (gn("ਬਠਿੰਡਾ ਜ਼ਿਲ੍ਹਾ OR ਬਠਿੰਡਾ ਪੇਂਡੂ", "pa", "pa"), "pa", "bathinda"),
+    (gn('"Rampura Phul" OR Maharaj OR "Kot Fatta"', "en-IN", "en"), "en", "rampura"),
+    # major Punjabi papers' Bathinda/Malwa coverage by site
+    (gn("ਬਠਿੰਡਾ site:ptcnews.tv OR site:jagbani.punjabkesari.in", "pa", "pa"), "pa", "bathinda"),
+    (gn("ਬਰਨਾਲਾ ਖ਼ਬਰਾਂ", "pa", "pa"), "pa", "nearby"),
 ]
 
 # ── hard geo-gate: a story is kept only if title/snippet mentions one of these ──
+import unicodedata
+# strong local terms — specific enough that a match means it's really your area
 GEO_TERMS = [
-    # English
-    "rampura", "phul", "bathinda", "bhatinda", "barnala", "tapa", "talwandi sabo",
-    "maur", "goniana", "bhucho", "rama mandi", "raman", "sangat", "nathana",
-    "dhanaula", "mehal kalan", "malwa",
+    # English (word-boundary matched below)
+    "rampura phul", "rampura", "bathinda", "bhatinda", "barnala",
+    "talwandi sabo", "maur mandi", "goniana", "bhucho", "rama mandi",
+    "nathana", "dhanaula", "mehal kalan", "maharaj", "kot fatta", "chathewala",
     # ਪੰਜਾਬੀ
-    "ਰਾਮਪੁਰਾ", "ਫੂਲ", "ਬਠਿੰਡਾ", "ਬਰਨਾਲਾ", "ਤਪਾ", "ਤਲਵੰਡੀ ਸਾਬੋ", "ਮੌੜ", "ਗੋਨਿਆਣਾ",
-    "ਭੁੱਚੋ", "ਰਮਾਣ", "ਸੰਗਤ", "ਨਥਾਣਾ", "ਧਨੌਲਾ", "ਮਹਿਲ ਕਲਾਂ", "ਮਾਲਵਾ",
+    "ਰਾਮਪੁਰਾ ਫੂਲ", "ਰਾਮਪੁਰਾ", "ਬਠਿੰਡਾ", "ਬਰਨਾਲਾ", "ਤਲਵੰਡੀ ਸਾਬੋ", "ਮੌੜ ਮੰਡੀ",
+    "ਗੋਨਿਆਣਾ", "ਭੁੱਚੋ", "ਨਥਾਣਾ", "ਧਨੌਲਾ", "ਮਹਿਲ ਕਲਾਂ", "ਮਹਿਰਾਜ", "ਕੋਟ ਫੱਤਾ", "ਚੱਠੇਵਾਲਾ", "ਫੂਲ",
     # हिन्दी
-    "रामपुरा", "फूल", "बठिंडा", "भटिंडा", "बरनाला", "तपा", "तलवंडी साबो", "मौड़",
-    "गोनियाना", "भुच्चो", "रामा मंडी", "रमन", "संगत", "नथाना", "धनौला", "मालवा",
+    "रामपुरा फूल", "रामपुरा", "बठिंडा", "भटिंडा", "बरनाला", "तलवंडी साबो",
+    "मौड़ मंडी", "गोनियाना", "भुच्चो", "नथाना", "धनौला", "महिराज", "कोट फत्ता",
 ]
-def in_my_area(item):
-    # every feed query already targets your towns, so a story from a region feed
-    # is in-area by definition. Only reject if it clearly names a FAR-OFF city
-    # and none of your towns. This stops over-blocking real local news.
+# stories that mention these are NOT yours, even if a weak word matched
+BLOCK_TERMS = [
+    "mandi himachal", "himachal", "mandi district", "mandi seat", "mandi lok sabha",
+    "हिमाचल", "मंडी जिला", "ਹਿਮਾਚਲ",
+    "mandi bhav", "mandi rate", "market rate", "मंडी भाव", "मंडी रेट", "भाव", "ਮੰਡੀ ਭਾਅ",
+    # far Punjab cities
+    "amritsar","jalandhar","ludhiana","patiala","mohali","chandigarh","gurdaspur",
+    "hoshiarpur","kapurthala","pathankot","firozpur","fazilka","moga",
+    "अमृतसर","जालंधर","लुधियाना","पटियाला","मोहाली","चंडीगढ़","फिरोजपुर","मोगा",
+    "ਅੰਮ੍ਰਿਤਸਰ","ਜਲੰਧਰ","ਲੁਧਿਆਣਾ","ਪਟਿਆਲਾ","ਮੋਹਾਲੀ","ਚੰਡੀਗੜ੍ਹ","ਫ਼ਿਰੋਜ਼ਪੁਰ","ਮੋਗਾ",
+]
+def _wordmatch(term, blob):
+    # whole-word / phrase match (works for Latin and Indic since we bound on spaces/edges)
+    return re.search(r"(^|[\s,.\-–—:;\"'(])" + re.escape(term) + r"($|[\s,.\-–—:;\"')])", blob) is not None
+
+# which towns belong to which region — used to TAG a story by what it actually names
+REGION_TOWNS = {
+    "rampura": ["rampura phul","rampura","phul","maharaj","kot fatta","chathewala",
+                "ਰਾਮਪੁਰਾ ਫੂਲ","ਰਾਮਪੁਰਾ","ਫੂਲ","ਮਹਿਰਾਜ","ਕੋਟ ਫੱਤਾ","ਚੱਠੇਵਾਲਾ",
+                "रामपुरा फूल","रामपुरा","फूल","महिराज","कोट फत्ता"],
+    "nearby":  ["barnala","tapa","dhanaula","mehal kalan","ਬਰਨਾਲਾ","ਤਪਾ","ਧਨੌਲਾ","ਮਹਿਲ ਕਲਾਂ",
+                "बरनाला","तपा","धनौला"],
+    "bathinda":["bathinda","bhatinda","talwandi sabo","maur mandi","goniana","bhucho","rama mandi",
+                "nathana","ਬਠਿੰਡਾ","ਤਲਵੰਡੀ ਸਾਬੋ","ਮੌੜ ਮੰਡੀ","ਗੋਨਿਆਣਾ","ਭੁੱਚੋ","ਨਥਾਣਾ",
+                "बठिंडा","भटिंडा","तलवंडी साबो","मौड़ मंडी","गोनियाना","भुच्चो","नथाना"],
+}
+def detect_region(item, fallback):
+    """Tag by the town the STORY names, in priority order, not by which feed found it."""
     blob = (item.get("title","") + " " + item.get("snippet","")).lower()
-    if any(t.lower() in blob for t in GEO_TERMS):
-        return True
-    # no local term found in the (often empty) snippet — reject only if a far city is named
-    FAR = ["amritsar","jalandhar","ludhiana","patiala","mohali","chandigarh","gurdaspur",
-           "hoshiarpur","kapurthala","pathankot","firozpur","fazilka","moga","sangrur city",
-           "अमृतसर","जालंधर","लुधियाना","पटियाला","मोहाली","चंडीगढ़","फिरोजपुर","मोगा",
-           "ਅੰਮ੍ਰਿਤਸਰ","ਜਲੰਧਰ","ਲੁਧਿਆਣਾ","ਪਟਿਆਲਾ","ਮੋਹਾਲੀ","ਚੰਡੀਗੜ੍ਹ","ਫ਼ਿਰੋਜ਼ਪੁਰ","ਮੋਗਾ"]
-    if any(f in blob for f in FAR):
+    for reg in ("rampura","bathinda","nearby"):          # priority order
+        if any(_wordmatch(t.lower(), blob) for t in REGION_TOWNS[reg]):
+            return reg
+    return fallback
+
+def in_my_area(item):
+    blob = (item.get("title","") + " " + item.get("snippet","")).lower()
+    # 1. explicit far-off / market-rate / Himachal → reject immediately
+    if any(b in blob for b in BLOCK_TERMS):
         return False
-    # snippet empty / ambiguous → trust the targeted feed and KEEP it
-    return True
+    # 2. must contain a real local town name (whole word), else reject
+    return any(_wordmatch(t.lower(), blob) for t in GEO_TERMS)
 
 REGION_W = {"rampura": 40, "bathinda": 30, "nearby": 20, "opinion": 6}
 
@@ -307,6 +342,7 @@ def main():
                         ex["region"] = it["region"]
                 elif not it["enrich"]:
                     if in_my_area(it):
+                        it["region"] = detect_region(it, it["region"])  # tag by town actually named
                         pool[it["id"]] = it; stats["kept"] += 1
                     else:
                         stats["geo_blocked"] += 1
