@@ -312,7 +312,7 @@ body{
 <script>
 "use strict";
 /* ═════════════ CONFIG ═════════════ */
-const HOURS_BACK   = 24;          // freshness window: today + last night only
+const HOURS_BACK   = 12;          // only last 12 hours
 const REFRESH_MIN  = 8;           // background re-print interval
 const EXTRA_JSON_URL = "news.json"; // AI press room output (GitHub Actions + Claude). Items here carry AI summaries.
 
@@ -322,7 +322,7 @@ const PROXIES = [
 ];
 
 const gn = (q,hl,ceid) =>
-  `https://news.google.com/rss/search?q=${encodeURIComponent(q+" when:1d")}&hl=${hl}&gl=IN&ceid=IN:${ceid}`;
+  `https://news.google.com/rss/search?q=${encodeURIComponent(q+" when:12h")}&hl=${hl}&gl=IN&ceid=IN:${ceid}`;
 const bing = q =>
   `https://www.bing.com/news/search?q=${encodeURIComponent(q)}&format=rss&qft=interval%3d%227%22`;
 

@@ -17,8 +17,8 @@ from bs4 import BeautifulSoup
 # ───────── config ─────────
 KEY            = os.environ["ANTHROPIC_API_KEY"].strip()
 MODEL          = "claude-haiku-4-5-20251001"   # cheapest, plenty for summaries
-HOURS_BACK     = 24
-MAX_NEW_PER_RUN= 120         # articles Claude reads per run (cost guard) — local stories prioritized
+HOURS_BACK     = 12
+MAX_NEW_PER_RUN= 200         # read plenty of new local stories each run
 BATCH          = 5           # articles per Claude call (smaller = no truncation now we ask for digests)
 OUT            = "news.json"
 CACHE          = "claude_cache.json"
@@ -26,7 +26,7 @@ UA = {"User-Agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 "
                     "(KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36"}
 
 def gn(q, hl, ceid):
-    return (f"https://news.google.com/rss/search?q={quote(q + ' when:1d')}"
+    return (f"https://news.google.com/rss/search?q={quote(q + ' when:12h')}"
             f"&hl={hl}&gl=IN&ceid=IN:{ceid}")
 def bing(q):
     return f"https://www.bing.com/news/search?q={quote(q)}&format=rss"
@@ -269,10 +269,13 @@ def main():
 
     # 1. collect from every press
     pool = {}
+    stats = {"raw":0, "geo_blocked":0, "kept":0}
     for url, lang, region in FEEDS:
         is_bing = "bing.com" in url   # Bing fakes dates on old stories → enrich-only
         try:
-            for it in parse_feed(fetch(url).text, lang, region, enrich=is_bing):
+            parsed = parse_feed(fetch(url).text, lang, region, enrich=is_bing)
+            for it in parsed:
+                stats["raw"] += 1
                 ex = pool.get(it["id"])
                 if ex:
                     if not ex["image"] and it["image"]:
@@ -281,11 +284,16 @@ def main():
                         ex["snippet"] = it["snippet"]
                     if REGION_W.get(it["region"],0) > REGION_W.get(ex["region"],0):
                         ex["region"] = it["region"]
-                elif not it["enrich"] and in_my_area(it):
-                    pool[it["id"]] = it
-            print(f"✓ {lang}/{region}")
+                elif not it["enrich"]:
+                    if in_my_area(it):
+                        pool[it["id"]] = it; stats["kept"] += 1
+                    else:
+                        stats["geo_blocked"] += 1
+            print(f"✓ {lang}/{region} ({len(parsed)})")
         except Exception as e:
             print(f"✗ {lang}/{region}: {e}")
+    print(f"   GATES: {stats['raw']} fresh-in-window from feeds · "
+          f"{stats['geo_blocked']} blocked as out-of-area · {stats['kept']} kept")
 
     # carry forward previously printed items still inside the window AND still in-area
     cutoff = datetime.now(timezone.utc) - timedelta(hours=HOURS_BACK)
@@ -342,6 +350,7 @@ def main():
                     "region": res.get("region", a["region"]),
                     "lang": res.get("lang", a["lang"]),
                     "fresh": res.get("fresh", True),
+                    "date": a["date"],
                 }
             print(f"  Claude read batch {i//BATCH + 1} ({len(results)} ok)")
         except Exception as e:
@@ -371,11 +380,23 @@ def main():
 
     json.dump(edition, open(OUT, "w", encoding="utf-8"),
               ensure_ascii=False, indent=1)
-    # keep cache from growing forever
-    if len(cache) > 3000:
-        cache = dict(list(cache.items())[-2000:])
+    # CACHE holds ONLY last-12-hour stories — drop anything older every run
+    pruned = {}
+    for k, v in cache.items():
+        d = v.get("date")
+        if not d:
+            continue                      # no date stamp → drop (old format)
+        try:
+            dt = datetime.fromisoformat(d)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            if dt >= cutoff:               # cutoff = now - 12h
+                pruned[k] = v
+        except Exception:
+            continue
+    cache = pruned
     json.dump(cache, open(CACHE, "w", encoding="utf-8"), ensure_ascii=False)
-    print(f"🗞️  printed {len(edition)} stories → {OUT}")
+    print(f"🗞️  printed {len(edition)} stories → {OUT} · cache now {len(cache)} (≤12h)")
 
 if __name__ == "__main__":
     main()
