@@ -344,13 +344,13 @@ For EACH article below, return a JSON object with:
 - "i": article number
 - "summary": 50-80 words, factual, neutral, written in the SAME LANGUAGE as the article (Punjabi stays Punjabi in Gurmukhi, Hindi stays Hindi, English stays English). No opinions added, no hype. This is the short card preview.
 - "digest": a richer 4-6 sentence account in the SAME LANGUAGE — the full who/what/where/when/why, every concrete fact, figure, name and place from the article, written cleanly as a proper news brief so the reader needs nothing else. Still neutral, no opinion, no padding.
-- "region": Read the FULL story. Decide WHERE THE MAIN EVENTS ACTUALLY HAPPEN — the physical location of what the story reports. A town being merely MENTIONED is NOT enough (e.g. "a Bathinda man died in Jalandhar" is a JALANDHAR story → "other", because the death happened in Jalandhar, not Bathinda). Only after deciding the true event-location, set:
-   • "rampura" — the events happen in Rampura Phul, Phul, or a Rampura-Phul-tehsil village.
-   • "bathinda" — the events happen in Bathinda city or a Bathinda-district town (Talwandi Sabo, Maur, Goniana, Bhucho, Rama Mandi, Nathana).
-   • "nearby" — the events happen in Barnala, Tapa, Dhanaula, or Mehal Kalan.
-   • "chandigarh" — the events happen in Chandigarh or Kasauli.
-   • "other" — for EVERYTHING else: events happen in another district/town, OR the story is general/state/national/international, OR you cannot clearly tell the events are in one of my towns. When unsure, the answer is "other".
-   Judge ONLY by where the events happen, never by which town names appear in the headline.
+- "region": Read the WHOLE story, then judge: is this story ABOUT or does it directly AFFECT my area? My area = Rampura Phul, Phul and Rampura-Phul-tehsil villages; Bathinda city/district (Talwandi Sabo, Maur, Goniana, Bhucho, Rama Mandi, Nathana, and Bathinda-district villages); Barnala, Tapa, Dhanaula, Mehal Kalan; and Chandigarh/Kasauli. A story counts if its subject, the people, the place, or the impact belongs to my area — even if some event detail is nearby. A town merely appearing in the headline does NOT by itself qualify; judge from the actual content. Then set:
+   • "rampura" — it is about/affects Rampura Phul, Phul, or a Rampura-tehsil village.
+   • "bathinda" — it is about/affects Bathinda city or a Bathinda-district town/village.
+   • "nearby" — it is about/affects Barnala, Tapa, Dhanaula, or Mehal Kalan.
+   • "chandigarh" — it is about/affects Chandigarh or Kasauli.
+   • "other" — it is NOT about and does not affect my area (e.g. a Jalandhar event with no connection to my area, or general/state/national/international news). When the story has no real connection to my area, use "other".
+   Decide by reading the content, never by which town names appear in the headline.
 - "lang": "pa", "hi" or "en".
 - "fresh": true normally; false ONLY if the text clearly reports events from more than 3 days ago (old dates, last year, anniversary retrospectives, recycled stories).
 - "place": the single specific place the story is mainly about, taken from the article matter (e.g. "Rampura Phul", "Bathinda", "Talwandi Sabo", "Barnala", "Kasauli", "Chandigarh", or a village name). Use the same script as the article. One short place name only.
