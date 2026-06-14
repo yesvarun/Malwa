@@ -128,12 +128,12 @@ def matched_keyword(item):
     return ""
 
 def detect_region(item, fallback):
-    """Tag by the town the STORY names, in priority order, not by which feed found it."""
+    """Tag by the town the STORY names. Returns '' if no known local place — caller drops it."""
     blob = (item.get("title","") + " " + item.get("snippet","")).lower()
     for reg in ("rampura","bathinda","nearby","chandigarh"):   # priority order
         if any(_wordmatch(t.lower(), blob) for t in REGION_TOWNS[reg]):
             return reg
-    return fallback
+    return ""   # no recognized local place → not yours
 
 CITY_MELA_ONLY = ["chandigarh","ਚੰਡੀਗੜ੍ਹ","चंडीगढ़"]   # Chandigarh: keep only if mela/fair
 KASAULI = ["kasauli","ਕਸੌਲੀ","कसौली"]                   # Kasauli: always allowed (rare)
@@ -163,6 +163,16 @@ def in_my_area(item):
     if any(h in blob for h in STATE_HINTS):
         return False
     return True
+
+def obviously_not_mine(item):
+    """CHEAP pre-filter — only blocks clearly far-off junk so Claude doesn't waste reads on it.
+    NOT the real decision. Claude reads the full body and makes the real area call later.
+    Be permissive here: when unsure, let it through so Claude can read it."""
+    blob = (item.get("title","") + " " + item.get("snippet","")).lower()
+    # obvious far cities / other states / market-rate tables → skip the read entirely
+    if any(b in blob for b in BLOCK_TERMS):
+        return True
+    return False   # everything else → let Claude read the body and decide
 
 # mela / fair / festival terms — these stories are always welcome from Punjab + Chandigarh
 MELA_TERMS = ["mela","fair","festival","ਮੇਲਾ","ਮੇਲੇ","ਜੋੜ ਮੇਲਾ","ਤਿਉਹਾਰ",
@@ -315,7 +325,7 @@ For EACH article below, return a JSON object with:
 - "i": article number
 - "summary": 50-80 words, factual, neutral, written in the SAME LANGUAGE as the article (Punjabi stays Punjabi in Gurmukhi, Hindi stays Hindi, English stays English). No opinions added, no hype. This is the short card preview.
 - "digest": a richer 4-6 sentence account in the SAME LANGUAGE — the full who/what/where/when/why, every concrete fact, figure, name and place from the article, written cleanly as a proper news brief so the reader needs nothing else. Still neutral, no opinion, no padding.
-- "region": exactly one of "rampura" (Rampura Phul / Phul town / Rampura tehsil villages), "bathinda" (Bathinda city/district incl. Talwandi Sabo, Maur, Goniana, Bhucho, Rama Mandi, Raman, Sangat, Nathana), "nearby" (Barnala, Tapa, Dhanaula, Mehal Kalan), or "opinion" (editorial/op-ed/magazine piece). If unclear, pick the closest of these — never invent other regions.
+- "region": based on where the story's events actually happen — "rampura" (Rampura Phul / Phul town / Rampura tehsil villages), "bathinda" (Bathinda city/district incl. Talwandi Sabo, Maur, Goniana, Bhucho, Rama Mandi, Nathana), "nearby" (Barnala, Tapa, Dhanaula, Mehal Kalan), "chandigarh" (Chandigarh/Kasauli), "opinion" (editorial/op-ed), or "other" if the story is NOT really about any of these places (e.g. it happened at the Ravi river, another district, or elsewhere). Be honest — do NOT force a story into bathinda or any region if it does not belong there. Use "other" in that case.
 - "lang": "pa", "hi" or "en".
 - "fresh": true normally; false ONLY if the text clearly reports events from more than 3 days ago (old dates, last year, anniversary retrospectives, recycled stories).
 - "place": the single specific place the story is mainly about, taken from the article matter (e.g. "Rampura Phul", "Bathinda", "Talwandi Sabo", "Barnala", "Kasauli", "Chandigarh", or a village name). Use the same script as the article. One short place name only.
@@ -391,9 +401,12 @@ def main():
                     if REGION_W.get(it["region"],0) > REGION_W.get(ex["region"],0):
                         ex["region"] = it["region"]
                 elif not it["enrich"]:
-                    if in_my_area(it):
-                        it["region"] = detect_region(it, it["region"])  # tag by town actually named
-                        it["matched"] = matched_keyword(it)             # the keyword that let it in
+                    # LOOSE pre-filter only: drop obvious far-off junk to save Claude reads.
+                    # The REAL area decision happens after Claude reads the full story body.
+                    if not obviously_not_mine(it):
+                        det = detect_region(it, it["region"])
+                        if det: it["region"] = det
+                        it["matched"] = matched_keyword(it)
                         pool[it["id"]] = it; stats["kept"] += 1
                     else:
                         stats["geo_blocked"] += 1
@@ -480,6 +493,9 @@ def main():
         c = cache.get(md5(x["title"]), {})
         if x.get("drop") or c.get("fresh") is False:
             continue   # old story — never print
+        reg = c.get("region", x["region"])
+        if reg in ("other", "", None):
+            continue   # Claude read it and it's NOT about your places → drop, don't show
         edition.append({
             "title": x["title"],
             "link": x["link"],

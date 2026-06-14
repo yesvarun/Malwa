@@ -112,16 +112,25 @@ body{
   display:inline-flex;align-items:center;gap:5px;
   font-family:var(--serif-pa);font-size:11.5px;color:var(--blue);
   background:rgba(44,74,110,.08);border:1px solid rgba(44,74,110,.35);
-  border-radius:12px;padding:3px 6px 3px 10px;letter-spacing:.3px;
+  border-radius:12px;padding:3px 10px;letter-spacing:.3px;
 }
-.kwchip .kwlike,.kwchip .kwdis{
-  font-size:13px;line-height:1;background:none;border:none;cursor:pointer;
-  padding:1px 3px;border-radius:50%;
+.prefbar{display:flex;gap:10px;margin:10px 16px 0}
+.prefbar button{
+  flex:1;font-family:var(--serif-pa);font-size:13px;padding:7px 0;cursor:pointer;
+  border:1.3px solid var(--ink);border-radius:10px;background:var(--paper);color:var(--ink);
 }
-.kwchip .kwlike{color:#bbb}
-.kwchip .kwlike.on{color:var(--stamp)}
-.kwchip .kwdis{color:#bbb}
-.kwchip .kwlike:active,.kwchip .kwdis:active{transform:scale(1.3)}
+.prefbar .lovebtn.on{background:var(--stamp);color:var(--paper);border-color:var(--ink)}
+.prefbar button:active{transform:translateY(1px)}
+.choicepop{
+  position:fixed;z-index:60;display:flex;flex-direction:column;gap:2px;
+  background:var(--paper);border:1.4px solid var(--ink);border-radius:10px;
+  box-shadow:0 6px 20px rgba(0,0,0,.3);padding:4px;
+}
+.choicepop button{
+  font-family:var(--serif-pa);font-size:13px;padding:8px 18px;cursor:pointer;
+  background:none;border:none;color:var(--ink);text-align:left;border-radius:7px;white-space:nowrap;
+}
+.choicepop button:active{background:rgba(0,0,0,.07)}
 #pendingbar{
   display:none;position:fixed;z-index:35;left:50%;transform:translateX(-50%);
   top:calc(env(safe-area-inset-top,0px) + 122px);
@@ -415,7 +424,7 @@ function detectRegion(x, fallback){
   const blob = ((x.title||"")+" "+(x.summary||"")).toLowerCase();
   for(const reg of ["rampura","bathinda","nearby","chandigarh"])
     if(REGION_TOWNS[reg].some(t=>wordMatch(t.toLowerCase(), blob))) return reg;
-  return fallback;
+  return "other";   // honest: no recognized local town named
 }
 // which keyword matched, for the "why this story" chip
 function matchedKeyword(x){
@@ -536,7 +545,11 @@ function mergeItems(fresh){
       if(!old.summary && f.summary) old.summary = f.summary;
       if(REGION_W[f.region] > REGION_W[old.region]) old.region = f.region;
     }else if(!dismissed.has(f.id) && !f.enrich && (f.pref || inMyArea(f))){
-      if(!f.pref) f.region = detectRegion(f, f.region);  // tag by town named
+      if(!f.pref){
+        const r = detectRegion(f, f.region);
+        if(r==="other") continue;      // no known local place → drop
+        f.region = r;
+      }
       byId.set(f.id,f); added++;
     }
   }
@@ -638,6 +651,7 @@ function ago(d){
 function visible(){
   let list = items.filter(x=>!dismissed.has(x.id)
     && !isDisliked(x)
+    && x.region!=="other"
     && (filterLang==="all"||x.lang===filterLang)
     && (filterReg==="all"||x.region===filterReg)
     && (!likeFilter || keysOf(x).includes(likeFilter)));
@@ -674,12 +688,9 @@ function render(keepScroll){
     let topic = (x.topic||"").trim();
     if(!place){ place = REGION_LABEL[x.region] || ""; }   // fallback for live, not-yet-read stories
     if(!topic){ const k=matchedKeyword(x); if(k && k!==place.toLowerCase()) topic=k; }
-    const chip = (label, kw, icon) => kw ? `
-      <span class="kwchip" data-kw="${kw.toLowerCase()}">
-        ${icon} ${kw}
-        <button class="kwlike${lovedKw[kw.toLowerCase()]?" on":""}" data-kw="${kw.toLowerCase()}" title="ਪਸੰਦ">♥</button>
-        <button class="kwdis" data-kw="${kw.toLowerCase()}" title="ਨਾਪਸੰਦ">✕</button>
-      </span>` : "";
+    const chip = (kw, icon) => kw ? `<span class="kwchip">${icon} ${kw}</span>` : "";
+    const pL = place.toLowerCase(), tL = topic.toLowerCase();
+    const lovedAny = (pL&&lovedKw[pL]) || (tL&&lovedKw[tL]);
     c.innerHTML = `
       <div class="kicker">
         <span class="regiontag">${REGION_LABEL[x.region]||x.region}</span>
@@ -696,7 +707,11 @@ function render(keepScroll){
       <h2 class="headline">${x.title}</h2>
       <div class="rule">❦</div>
       <p class="summary">${x.summary || "ਪੂਰੀ ਖ਼ਬਰ ਪੜ੍ਹਨ ਲਈ ਹੇਠਾਂ ਬਟਨ ਦਬਾਓ।"}</p>
-      <div class="kwrow">${chip("place",place,"📍")}${chip("topic",topic,"🏷️")}</div>
+      <div class="kwrow">${chip(place,"📍")}${chip(topic,"🏷️")}</div>
+      <div class="prefbar">
+        <button class="lovebtn${lovedAny?" on":""}">${lovedAny?"♥":"♡"} ਪਸੰਦ</button>
+        <button class="disbtn">✕ ਨਹੀਂ ਚਾਹੀਦੀ</button>
+      </div>
       <div class="cardfoot">
         <span class="srcname">${x.source}</span>
         <button class="readbtn">ਪੂਰੀ ਖ਼ਬਰ ਪੜ੍ਹੋ →</button>
@@ -705,23 +720,52 @@ function render(keepScroll){
     c.querySelector(".readbtn").addEventListener("click", ev=>{
       ev.stopPropagation(); openReader(x);
     });
-    c.querySelectorAll(".kwlike").forEach(btn=>btn.addEventListener("click", ev=>{
-      ev.stopPropagation(); const k=btn.dataset.kw;
-      if(lovedKw[k]){ unlikeKey(k); btn.classList.remove("on"); toast("♡ '"+k+"' ਹਟਾਇਆ"); }
-      else { likeKey(k); btn.classList.add("on"); toast("♥ '"+k+"' ਪਸੰਦ — ਹੋਰ ਇਹੋ ਜਿਹੀਆਂ ਉੱਪਰ ਆਉਣਗੀਆਂ"); }
-      render(true);
-    }));
-    c.querySelectorAll(".kwdis").forEach(btn=>btn.addEventListener("click", ev=>{
-      ev.stopPropagation(); const k=btn.dataset.kw;
-      dislikeKey(k);
-      toast("✕ '"+k+"' ਲੁਕਾਇਆ — ਵਾਪਸ ਲਿਆਉਣ ਲਈ ਦਬਾਓ", ()=>{ undislikeKey(k); render(true); });
-      render(true);
-    }));
+    // choose place or topic, then run the action
+    function pickKey(anchor, action){
+      const opts = [];
+      if(place) opts.push(["📍 "+place, pL]);
+      if(topic) opts.push(["🏷️ "+topic, tL]);
+      if(opts.length===0) return;
+      if(opts.length===1){ action(opts[0][1]); return; }
+      showChoice(anchor, opts, action);
+    }
+    c.querySelector(".lovebtn").addEventListener("click", ev=>{
+      ev.stopPropagation();
+      pickKey(ev.currentTarget, k=>{
+        if(lovedKw[k]){ unlikeKey(k); toast("♡ '"+k+"' ਹਟਾਇਆ"); }
+        else { likeKey(k); toast("♥ '"+k+"' ਪਸੰਦ — ਹੋਰ ਇਹੋ ਜਿਹੀਆਂ ਉੱਪਰ ਆਉਣਗੀਆਂ"); }
+        render(true);
+      });
+    });
+    c.querySelector(".disbtn").addEventListener("click", ev=>{
+      ev.stopPropagation();
+      pickKey(ev.currentTarget, k=>{
+        dislikeKey(k);
+        toast("✕ '"+k+"' ਲੁਕਾਇਆ — ਵਾਪਸ ਲਿਆਉਣ ਲਈ ਦਬਾਓ", ()=>{ undislikeKey(k); render(true); });
+        render(true);
+      });
+    });
     attachSwipe(c, w, x);
     w.appendChild(c); frag.appendChild(w);
   });
   feedEl.appendChild(frag);
   if(keepScroll) feedEl.scrollTop = y;
+}
+
+/* small popup: choose place or topic */
+function showChoice(anchor, opts, action){
+  document.querySelectorAll(".choicepop").forEach(e=>e.remove());
+  const pop = document.createElement("div"); pop.className="choicepop";
+  opts.forEach(([label,kw])=>{
+    const b=document.createElement("button"); b.textContent=label;
+    b.onclick=ev=>{ ev.stopPropagation(); action(kw); pop.remove(); };
+    pop.appendChild(b);
+  });
+  document.body.appendChild(pop);
+  const r = anchor.getBoundingClientRect();
+  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth-pop.offsetWidth-8))+"px";
+  pop.style.top  = (r.top - pop.offsetHeight - 6)+"px";
+  setTimeout(()=>{ document.addEventListener("click", function close(){ pop.remove(); document.removeEventListener("click",close); }); }, 0);
 }
 
 /* ═════════════ SWIPE-TO-DISMISS ═════════════ */
