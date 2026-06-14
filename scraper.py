@@ -325,7 +325,8 @@ def main():
 
     # 1. collect from every press
     pool = {}
-    stats = {"raw":0, "geo_blocked":0, "kept":0}
+    stats = {"raw":0, "geo_blocked":0, "kept":0, "blocked_empty_snip":0}
+    blocked_sample = []
     for url, lang, region in FEEDS:
         is_bing = "bing.com" in url   # Bing fakes dates on old stories → enrich-only
         try:
@@ -346,11 +347,16 @@ def main():
                         pool[it["id"]] = it; stats["kept"] += 1
                     else:
                         stats["geo_blocked"] += 1
+                        if not it.get("snippet"): stats["blocked_empty_snip"] += 1
+                        if len(blocked_sample) < 12:
+                            blocked_sample.append(("∅" if not it.get("snippet") else "·")+" "+it["title"][:70])
             print(f"✓ {lang}/{region} ({len(parsed)})")
         except Exception as e:
             print(f"✗ {lang}/{region}: {e}")
-    print(f"   GATES: {stats['raw']} fresh-in-window from feeds · "
-          f"{stats['geo_blocked']} blocked as out-of-area · {stats['kept']} kept")
+    print(f"   GATES: {stats['raw']} from feeds · {stats['geo_blocked']} blocked "
+          f"({stats['blocked_empty_snip']} had empty snippet) · {stats['kept']} kept")
+    print("   BLOCKED SAMPLE (∅=no snippet):")
+    for b in blocked_sample: print("     "+b)
 
     # carry forward previously printed items still inside the window AND still in-area
     cutoff = datetime.now(timezone.utc) - timedelta(hours=HOURS_BACK)
