@@ -445,8 +445,8 @@ def main():
                     pass
         except Exception:
             x["text"] = x.get("snippet","")   # fetch failed → fall back to snippet
-    with ThreadPoolExecutor(max_workers=10) as pool:
-        list(pool.map(enrich, fresh))
+    with ThreadPoolExecutor(max_workers=10) as tpool:
+        list(tpool.map(enrich, fresh))
     fresh = [x for x in fresh if not x.get("drop")]
 
     for i in range(0, len(fresh), BATCH):
