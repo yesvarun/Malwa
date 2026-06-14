@@ -928,11 +928,29 @@ mast.addEventListener("pointerleave",()=>clearTimeout(pressTimer));
 function showHealth(){
   const h = document.getElementById("health");
   h.style.display="block";
-  h.textContent = "PRESS-ROOM HEALTH  (tap to close)\n"+"═".repeat(34)+"\n\n"+
-    Object.entries(health).map(([u,s])=>{
-      const q = decodeURIComponent((/q=([^&]+)/.exec(u)||[,"?"])[1]).replace(/ when:2d/,"");
-      return (s.startsWith("OK")?"✓ ":"✗ ")+q+"\n   "+s;
-    }).join("\n\n") + "\n\nTotal in stock: "+items.length+" · dismissed: "+dismissed.size;
+  const feedLines = Object.entries(health).map(([u,s])=>{
+    const q = decodeURIComponent((/q=([^&]+)/.exec(u)||[,"?"])[1]).replace(/ when:2d/,"");
+    return (s.startsWith("OK")?"✓ ":"✗ ")+q+"\n   "+s;
+  }).join("\n\n");
+  h.innerHTML = "";
+  const pre = document.createElement("pre");
+  pre.style.cssText = "white-space:pre-wrap;margin:0;font:inherit;color:inherit";
+  pre.textContent = "PRESS-ROOM HEALTH  (tap outside to close)\n"+"═".repeat(34)+"\n\n"+
+    feedLines + "\n\nTotal in stock: "+items.length+" · dismissed: "+dismissed.size;
+  h.appendChild(pre);
+  const btn = document.createElement("button");
+  btn.textContent = "↺ ਪੜ੍ਹਿਆ ਇਤਿਹਾਸ ਮਿਟਾਓ (ਸਭ ਮੁੜ ਦਿਖਾਓ)";
+  btn.style.cssText = "display:block;margin:16px auto 4px;font-family:var(--serif-pa);"+
+    "font-size:14px;padding:10px 18px;border:1.4px solid var(--paper);border-radius:10px;"+
+    "background:var(--stamp);color:var(--paper);cursor:pointer";
+  btn.onclick = (ev)=>{
+    ev.stopPropagation();
+    readLog = {}; store.set(readLog); dismissed = new Set();
+    h.style.display="none";
+    render(false); feedEl.scrollTop=0;
+    toast("↺ ਪੜ੍ਹਿਆ ਇਤਿਹਾਸ ਮਿਟਾਇਆ — ਸਭ ਖ਼ਬਰਾਂ ਮੁੜ ਆਈਆਂ");
+  };
+  h.appendChild(btn);
   h.onclick=()=>h.style.display="none";
 }
 
