@@ -62,6 +62,14 @@ FEEDS = [
     # major Punjabi papers' Bathinda/Malwa coverage by site
     (gn("ਬਠਿੰਡਾ site:ptcnews.tv OR site:jagbani.punjabkesari.in", "pa", "pa"), "pa", "bathinda"),
     (gn("ਬਰਨਾਲਾ ਖ਼ਬਰਾਂ", "pa", "pa"), "pa", "nearby"),
+    # Chandigarh + Kasauli (your liked places)
+    (gn("ਚੰਡੀਗੜ੍ਹ", "pa", "pa"), "pa", "chandigarh"),
+    (gn("चंडीगढ़ OR कसौली", "hi", "hi"), "hi", "chandigarh"),
+    (gn("Chandigarh OR Kasauli", "en-IN", "en"), "en", "chandigarh"),
+    # mela / fair — from Punjab + Chandigarh (your standing interest)
+    (gn("ਮੇਲਾ ਪੰਜਾਬ OR ਜੋੜ ਮੇਲਾ", "pa", "pa"), "pa", "nearby"),
+    (gn("मेला पंजाब OR चंडीगढ़ मेला", "hi", "hi"), "hi", "chandigarh"),
+    (gn("Punjab mela OR Chandigarh fair OR festival", "en-IN", "en"), "en", "chandigarh"),
 ]
 
 # ── hard geo-gate: a story is kept only if title/snippet mentions one of these ──
@@ -72,12 +80,15 @@ GEO_TERMS = [
     "rampura phul", "rampura", "bathinda", "bhatinda", "barnala",
     "talwandi sabo", "maur mandi", "goniana", "bhucho", "rama mandi",
     "nathana", "dhanaula", "mehal kalan", "maharaj", "kot fatta", "chathewala",
+    "chandigarh", "kasauli",
     # ਪੰਜਾਬੀ
     "ਰਾਮਪੁਰਾ ਫੂਲ", "ਰਾਮਪੁਰਾ", "ਬਠਿੰਡਾ", "ਬਰਨਾਲਾ", "ਤਲਵੰਡੀ ਸਾਬੋ", "ਮੌੜ ਮੰਡੀ",
     "ਗੋਨਿਆਣਾ", "ਭੁੱਚੋ", "ਨਥਾਣਾ", "ਧਨੌਲਾ", "ਮਹਿਲ ਕਲਾਂ", "ਮਹਿਰਾਜ", "ਕੋਟ ਫੱਤਾ", "ਚੱਠੇਵਾਲਾ", "ਫੂਲ",
+    "ਚੰਡੀਗੜ੍ਹ", "ਕਸੌਲੀ",
     # हिन्दी
     "रामपुरा फूल", "रामपुरा", "बठिंडा", "भटिंडा", "बरनाला", "तलवंडी साबो",
     "मौड़ मंडी", "गोनियाना", "भुच्चो", "नथाना", "धनौला", "महिराज", "कोट फत्ता",
+    "चंडीगढ़", "कसौली",
 ]
 # stories that mention these are NOT yours, even if a weak word matched
 BLOCK_TERMS = [
@@ -85,10 +96,13 @@ BLOCK_TERMS = [
     "हिमाचल", "मंडी जिला", "ਹਿਮਾਚਲ",
     "mandi bhav", "mandi rate", "market rate", "मंडी भाव", "मंडी रेट", "भाव", "ਮੰਡੀ ਭਾਅ",
     # far Punjab cities
-    "amritsar","jalandhar","ludhiana","patiala","mohali","chandigarh","gurdaspur",
+    "amritsar","jalandhar","ludhiana","patiala","mohali","gurdaspur",
     "hoshiarpur","kapurthala","pathankot","firozpur","fazilka","moga",
-    "अमृतसर","जालंधर","लुधियाना","पटियाला","मोहाली","चंडीगढ़","फिरोजपुर","मोगा",
-    "ਅੰਮ੍ਰਿਤਸਰ","ਜਲੰਧਰ","ਲੁਧਿਆਣਾ","ਪਟਿਆਲਾ","ਮੋਹਾਲੀ","ਚੰਡੀਗੜ੍ਹ","ਫ਼ਿਰੋਜ਼ਪੁਰ","ਮੋਗਾ",
+    "अमृतसर","जालंधर","लुधियाना","पटियाला","मोहाली","फिरोजपुर","मोगा",
+    "ਅੰਮ੍ਰਿਤਸਰ","ਜਲੰਧਰ","ਲੁਧਿਆਣਾ","ਪਟਿਆਲਾ","ਮੋਹਾਲੀ","ਫ਼ਿਰੋਜ਼ਪੁਰ","ਮੋਗਾ",
+    # other states / far places that leaked in
+    "sirsa","haridwar","haryana","rajasthan","delhi","hisar","fatehabad","ਸਿਰਸਾ","ਹਰਿਆਣਾ",
+    "सिरसा","हरिद्वार","हरियाणा","राजस्थान","दिल्ली","हिसार","fatehgarh","sangrur city",
 ]
 def _wordmatch(term, blob):
     # whole-word / phrase match (works for Latin and Indic since we bound on spaces/edges)
@@ -104,24 +118,51 @@ REGION_TOWNS = {
     "bathinda":["bathinda","bhatinda","talwandi sabo","maur mandi","goniana","bhucho","rama mandi",
                 "nathana","ਬਠਿੰਡਾ","ਤਲਵੰਡੀ ਸਾਬੋ","ਮੌੜ ਮੰਡੀ","ਗੋਨਿਆਣਾ","ਭੁੱਚੋ","ਨਥਾਣਾ",
                 "बठिंडा","भटिंडा","तलवंडी साबो","मौड़ मंडी","गोनियाना","भुच्चो","नथाना"],
+    "chandigarh":["chandigarh","kasauli","ਚੰਡੀਗੜ੍ਹ","ਕਸੌਲੀ","चंडीगढ़","कसौली"],
 }
+def matched_keyword(item):
+    """Return the local term that the story named, for the 'why this story' chip."""
+    blob = (item.get("title","") + " " + item.get("snippet","")).lower()
+    for t in GEO_TERMS + MELA_TERMS:
+        if _wordmatch(t.lower(), blob):
+            return t
+    return ""
+
 def detect_region(item, fallback):
     """Tag by the town the STORY names, in priority order, not by which feed found it."""
     blob = (item.get("title","") + " " + item.get("snippet","")).lower()
-    for reg in ("rampura","bathinda","nearby"):          # priority order
+    for reg in ("rampura","bathinda","nearby","chandigarh"):   # priority order
         if any(_wordmatch(t.lower(), blob) for t in REGION_TOWNS[reg]):
             return reg
     return fallback
 
 def in_my_area(item):
     blob = (item.get("title","") + " " + item.get("snippet","")).lower()
-    # 1. explicit far-off / market-rate / Himachal → reject immediately
+    # 1. explicit far-off / market-rate / Himachal in the text → always reject
     if any(b in blob for b in BLOCK_TERMS):
         return False
-    # 2. must contain a real local town name (whole word), else reject
-    return any(_wordmatch(t.lower(), blob) for t in GEO_TERMS)
+    # 2. names a local town → keep
+    if any(_wordmatch(t.lower(), blob) for t in GEO_TERMS):
+        return True
+    # 2b. mela / fair / festival news from Punjab or Chandigarh → always welcome
+    if any(_wordmatch(t.lower(), blob) for t in MELA_TERMS):
+        return True
+    # 3. neither: the feed that found it already searched for your town.
+    #    Google News often returns EMPTY snippets, so absence of a town name
+    #    is not proof it's far-off. Trust the targeted feed and KEEP it,
+    #    UNLESS the title clearly reads as state/national-level news.
+    STATE_HINTS = ["ਮੁੱਖ ਮੰਤਰੀ","मुख्यमंत्री","chief minister",
+                   "ਭਗਵੰਤ ਮਾਨ","भगवंत मान","bhagwant mann","ਸਰਕਾਰ","सरकार","cabinet",
+                   "ਮੌਸਮ","मौसम","weather","ਵਿਧਾਨ ਸਭਾ","विधानसभा","lok sabha","ਲੋਕ ਸਭਾ"]
+    if any(h in blob for h in STATE_HINTS):
+        return False     # looks like state/national news, not local
+    return True          # neutral local-feed story with empty snippet → keep
 
-REGION_W = {"rampura": 40, "bathinda": 30, "nearby": 20, "opinion": 6}
+# mela / fair / festival terms — these stories are always welcome from Punjab + Chandigarh
+MELA_TERMS = ["mela","fair","festival","ਮੇਲਾ","ਮੇਲੇ","ਜੋੜ ਮੇਲਾ","ਤਿਉਹਾਰ",
+              "मेला","मेले","जोड़ मेला","त्योहार","fete","carnival"]
+
+REGION_W = {"rampura": 40, "bathinda": 30, "nearby": 20, "chandigarh": 14, "opinion": 6}
 
 # ───────── helpers ─────────
 def norm_key(t):
@@ -344,6 +385,7 @@ def main():
                 elif not it["enrich"]:
                     if in_my_area(it):
                         it["region"] = detect_region(it, it["region"])  # tag by town actually named
+                        it["matched"] = matched_keyword(it)             # the keyword that let it in
                         pool[it["id"]] = it; stats["kept"] += 1
                     else:
                         stats["geo_blocked"] += 1
@@ -353,10 +395,7 @@ def main():
             print(f"✓ {lang}/{region} ({len(parsed)})")
         except Exception as e:
             print(f"✗ {lang}/{region}: {e}")
-    print(f"   GATES: {stats['raw']} from feeds · {stats['geo_blocked']} blocked "
-          f"({stats['blocked_empty_snip']} had empty snippet) · {stats['kept']} kept")
-    print("   BLOCKED SAMPLE (∅=no snippet):")
-    for b in blocked_sample: print("     "+b)
+    print(f"   GATES: {stats['raw']} from feeds · {stats['geo_blocked']} blocked · {stats['kept']} kept")
 
     # carry forward previously printed items still inside the window AND still in-area
     cutoff = datetime.now(timezone.utc) - timedelta(hours=HOURS_BACK)
@@ -433,6 +472,7 @@ def main():
             "image": x.get("image", ""),
             "lang": c.get("lang", x["lang"]),
             "region": c.get("region", x["region"]),
+            "matched": x.get("matched",""),
             "date": x["date"],
             "source": x["source"],
             "id": x["id"],

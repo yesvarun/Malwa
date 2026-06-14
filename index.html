@@ -107,6 +107,18 @@ body{
   box-shadow:inset 0 0 6px rgba(179,55,43,.12);
 }
 .kicker time{margin-left:auto;font-style:italic;font-family:var(--fell);letter-spacing:.5px}
+.whychip{
+  margin:6px 16px 0;align-self:flex-start;display:inline-block;
+  font-family:var(--serif-pa);font-size:11.5px;color:var(--blue);
+  background:rgba(44,74,110,.08);border:1px solid rgba(44,74,110,.35);
+  border-radius:11px;padding:2px 10px;letter-spacing:.3px;
+}
+.lovebtn{
+  font-size:20px;line-height:1;background:none;border:none;cursor:pointer;
+  color:var(--stamp);padding:2px 8px 2px 0;transition:transform .15s;
+}
+.lovebtn.on{color:var(--stamp)}
+.lovebtn:active{transform:scale(1.4)}
 .imgbox{
   margin:10px 14px 0;height:34%;min-height:120px;flex:0 0 auto;
   border:1.3px solid var(--ink);background:var(--paper-deep);
@@ -270,6 +282,7 @@ body{
   <button class="chip red" data-k="reg" data-v="rampura">ਰਾਮਪੁਰਾ ਫੂਲ</button>
   <button class="chip red" data-k="reg" data-v="bathinda">ਬਠਿੰਡਾ</button>
   <button class="chip red" data-k="reg" data-v="nearby">ਬਰਨਾਲਾ–ਤਪਾ</button>
+  <button class="chip red" data-k="reg" data-v="chandigarh">ਚੰਡੀਗੜ੍ਹ</button>
   <button class="chip red" data-k="reg" data-v="opinion">ਰਾਇ · Opinion</button>
   <button class="chip" id="clearall" style="border-style:dashed;margin-left:auto">ਸਭ ਸਾਫ਼ ✕</button>
   <button class="chip" id="installbtn" style="display:none;background:var(--blue);color:var(--paper);border-color:var(--blue)" onclick="doInstall()">⤓ ਐਪ</button>
@@ -353,23 +366,31 @@ const FEEDS = [
 
 // strong local terms — a whole-word match means it's really your area
 const GEO_TERMS = ["rampura phul","rampura","phul","bathinda","bhatinda","barnala","talwandi sabo",
-  "maur mandi","goniana","bhucho","rama mandi","nathana","dhanaula","mehal kalan","maharaj","kot fatta","chathewala",
-  "ਰਾਮਪੁਰਾ ਫੂਲ","ਰਾਮਪੁਰਾ","ਫੂਲ","ਬਠਿੰਡਾ","ਬਰਨਾਲਾ","ਤਲਵੰਡੀ ਸਾਬੋ","ਮੌੜ ਮੰਡੀ","ਗੋਨਿਆਣਾ","ਭੁੱਚੋ","ਨਥਾਣਾ","ਧਨੌਲਾ","ਮਹਿਲ ਕਲਾਂ","ਮਹਿਰਾਜ","ਕੋਟ ਫੱਤਾ","ਚੱਠੇਵਾਲਾ",
-  "रामपुरा फूल","रामपुरा","फूल","बठिंडा","भटिंडा","बरनाला","तलवंडी साबो","मौड़ मंडी","गोनियाना","भुच्चो","नथाना","धनौला","महिराज","कोट फत्ता"];
+  "maur mandi","goniana","bhucho","rama mandi","nathana","dhanaula","mehal kalan","maharaj","kot fatta","chathewala","chandigarh","kasauli",
+  "ਰਾਮਪੁਰਾ ਫੂਲ","ਰਾਮਪੁਰਾ","ਫੂਲ","ਬਠਿੰਡਾ","ਬਰਨਾਲਾ","ਤਲਵੰਡੀ ਸਾਬੋ","ਮੌੜ ਮੰਡੀ","ਗੋਨਿਆਣਾ","ਭੁੱਚੋ","ਨਥਾਣਾ","ਧਨੌਲਾ","ਮਹਿਲ ਕਲਾਂ","ਮਹਿਰਾਜ","ਕੋਟ ਫੱਤਾ","ਚੱਠੇਵਾਲਾ","ਚੰਡੀਗੜ੍ਹ","ਕਸੌਲੀ",
+  "रामपुरा फूल","रामपुरा","फूल","बठिंडा","भटिंडा","बरनाला","तलवंडी साबो","मौड़ मंडी","गोनियाना","भुच्चो","नथाना","धनौला","महिराज","कोट फत्ता","चंडीगढ़","कसौली"];
 // these mean it's NOT your area (Himachal Mandi, market rates, far cities)
 const BLOCK_TERMS = ["mandi himachal","himachal","mandi district","mandi seat","mandi lok sabha",
   "हिमाचल","मंडी जिला","ਹਿਮਾਚਲ","mandi bhav","mandi rate","market rate","मंडी भाव","मंडी रेट","भाव","ਮੰਡੀ ਭਾਅ",
-  "amritsar","jalandhar","ludhiana","patiala","mohali","chandigarh","gurdaspur","hoshiarpur",
+  "amritsar","jalandhar","ludhiana","patiala","mohali","gurdaspur","hoshiarpur",
   "kapurthala","pathankot","firozpur","fazilka","moga",
-  "अमृतसर","जालंधर","लुधियाना","पटियाला","मोहाली","चंडीगढ़","फिरोजपुर","मोगा",
-  "ਅੰਮ੍ਰਿਤਸਰ","ਜਲੰਧਰ","ਲੁਧਿਆਣਾ","ਪਟਿਆਲਾ","ਮੋਹਾਲੀ","ਚੰਡੀਗੜ੍ਹ","ਫ਼ਿਰੋਜ਼ਪੁਰ","ਮੋਗਾ"];
+  "अमृतसर","जालंधर","लुधियाना","पटियाला","मोहाली","फिरोजपुर","मोगा",
+  "ਅੰਮ੍ਰਿਤਸਰ","ਜਲੰਧਰ","ਲੁਧਿਆਣਾ","ਪਟਿਆਲਾ","ਮੋਹਾਲੀ","ਫ਼ਿਰੋਜ਼ਪੁਰ","ਮੋਗਾ",
+  "sirsa","haridwar","haryana","rajasthan","delhi","hisar","fatehabad","ਸਿਰਸਾ","ਹਰਿਆਣਾ",
+  "सिरसा","हरिद्वार","हरियाणा","राजस्थान","दिल्ली","हिसार"];
 function wordMatch(term, blob){
   return new RegExp("(^|[\\s,.\\-–—:;\"'(])"+term.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"($|[\\s,.\\-–—:;\"')])").test(blob);
 }
 function inMyArea(x){
   const blob = ((x.title||"")+" "+(x.summary||"")).toLowerCase();
   if(BLOCK_TERMS.some(b=>blob.includes(b))) return false;
-  return GEO_TERMS.some(t=>wordMatch(t.toLowerCase(), blob));
+  if(GEO_TERMS.some(t=>wordMatch(t.toLowerCase(), blob))) return true;
+  if(MELA_TERMS.some(t=>wordMatch(t.toLowerCase(), blob))) return true;   // mela/fair always welcome
+  const STATE_HINTS = ["ਮੁੱਖ ਮੰਤਰੀ","मुख्यमंत्री","chief minister",
+    "ਭਗਵੰਤ ਮਾਨ","भगवंत मान","bhagwant mann","ਸਰਕਾਰ","सरकार","cabinet","ਮੌਸਮ","मौसम","weather",
+    "ਵਿਧਾਨ ਸਭਾ","विधानसभा","lok sabha","ਲੋਕ ਸਭਾ"];
+  if(STATE_HINTS.some(h=>blob.includes(h))) return false;
+  return true;   // neutral local-feed story, empty snippet → keep
 }
 // tag a story by the town it actually names (not which feed found it)
 const REGION_TOWNS = {
@@ -377,17 +398,36 @@ const REGION_TOWNS = {
     "ਰਾਮਪੁਰਾ ਫੂਲ","ਰਾਮਪੁਰਾ","ਫੂਲ","ਮਹਿਰਾਜ","ਕੋਟ ਫੱਤਾ","ਚੱਠੇਵਾਲਾ","रामपुरा फूल","रामपुरा","फूल","महिराज","कोट फत्ता"],
   nearby:["barnala","tapa","dhanaula","mehal kalan","ਬਰਨਾਲਾ","ਤਪਾ","ਧਨੌਲਾ","ਮਹਿਲ ਕਲਾਂ","बरनाला","तपा","धनौला"],
   bathinda:["bathinda","bhatinda","talwandi sabo","maur mandi","goniana","bhucho","rama mandi","nathana",
-    "ਬਠਿੰਡਾ","ਤਲਵੰਡੀ ਸਾਬੋ","ਮੌੜ ਮੰਡੀ","ਗੋਨਿਆਣਾ","ਭੁੱਚੋ","ਨਥਾਣਾ","बठिंडा","भटिंडा","तलवंडी साबो","मौड़ मंडी","गोनियाना","भुच्चो","नथाना"]
+    "ਬਠਿੰਡਾ","ਤਲਵੰਡੀ ਸਾਬੋ","ਮੌੜ ਮੰਡੀ","ਗੋਨਿਆਣਾ","ਭੁੱਚੋ","ਨਥਾਣਾ","बठिंडा","भटिंडा","तलवंडी साबो","मौड़ मंडी","गोनियाना","भुच्चो","नथाना"],
+  chandigarh:["chandigarh","kasauli","ਚੰਡੀਗੜ੍ਹ","ਕਸੌਲੀ","चंडीगढ़","कसौली"]
 };
 function detectRegion(x, fallback){
   const blob = ((x.title||"")+" "+(x.summary||"")).toLowerCase();
-  for(const reg of ["rampura","bathinda","nearby"])
+  for(const reg of ["rampura","bathinda","nearby","chandigarh"])
     if(REGION_TOWNS[reg].some(t=>wordMatch(t.toLowerCase(), blob))) return reg;
   return fallback;
 }
+// which keyword matched, for the "why this story" chip
+function matchedKeyword(x){
+  const blob = ((x.title||"")+" "+(x.summary||"")).toLowerCase();
+  for(const t of GEO_TERMS.concat(MELA_TERMS))
+    if(wordMatch(t.toLowerCase(), blob)) return t;
+  return x.matched||"";
+}
 
-const REGION_LABEL = {rampura:"ਰਾਮਪੁਰਾ ਫੂਲ", bathinda:"ਬਠਿੰਡਾ", nearby:"ਬਰਨਾਲਾ–ਤਪਾ", opinion:"ਰਾਇ"};
-const REGION_W = {rampura:40, bathinda:30, nearby:20, opinion:6};
+const REGION_LABEL = {rampura:"ਰਾਮਪੁਰਾ ਫੂਲ", bathinda:"ਬਠਿੰਡਾ", nearby:"ਬਰਨਾਲਾ–ਤਪਾ", chandigarh:"ਚੰਡੀਗੜ੍ਹ", opinion:"ਰਾਇ"};
+const REGION_W = {rampura:40, bathinda:30, nearby:20, chandigarh:14, opinion:6};
+const MELA_TERMS = ["mela","fair","festival","ਮੇਲਾ","ਮੇਲੇ","ਜੋੜ ਮੇਲਾ","ਤਿਉਹਾਰ","मेला","मेले","जोड़ मेला","त्योहार","fete","carnival"];
+
+/* ═══ love / preference store — boosts similar keywords next time ═══ */
+const loveStore = {
+  get(){ try{ return JSON.parse(localStorage.getItem("mg_love")||"{}"); }catch(e){ return {}; } },
+  set(o){ try{ localStorage.setItem("mg_love", JSON.stringify(o)); }catch(e){} }
+};
+let lovedKw = loveStore.get();          // { keyword: count }
+function loveKeyword(kw){ if(!kw) return; lovedKw[kw]=(lovedKw[kw]||0)+1; loveStore.set(lovedKw); }
+function unloveKeyword(kw){ if(!kw||!lovedKw[kw]) return; lovedKw[kw]--; if(lovedKw[kw]<=0) delete lovedKw[kw]; loveStore.set(lovedKw); }
+function loveBoost(x){ const k=x.matched||""; return lovedKw[k] ? lovedKw[k]*100 : 0; }
 const ORN = ["❦","✦","❧","✺","☙","✼"];
 
 /* ═════════════ STATE ═════════════ */
@@ -479,6 +519,8 @@ function mergeItems(fresh){
     }
   }
   items = [...byId.values()].sort((a,b)=>{
+    const lb = loveBoost(b)-loveBoost(a);          // loved keywords first
+    if(lb !== 0) return lb;
     const s = (REGION_W[b.region]-REGION_W[a.region]);
     if(s !== 0) return s;
     const ha = (a.summary&&a.summary.length>20)?1:0, hb=(b.summary&&b.summary.length>20)?1:0;
@@ -588,6 +630,8 @@ function render(keepScroll){
     const c = document.createElement("article");
     c.className = "card lang-"+x.lang; c.dataset.id = x.id;
     const orn = ORN[(x.id.length+i)%ORN.length];
+    const kw = matchedKeyword(x);
+    const loved = kw && lovedKw[kw];
     c.innerHTML = `
       <div class="kicker">
         <span class="regiontag">${REGION_LABEL[x.region]||x.region}</span>
@@ -604,13 +648,23 @@ function render(keepScroll){
       <h2 class="headline">${x.title}</h2>
       <div class="rule">❦</div>
       <p class="summary">${x.summary || "ਪੂਰੀ ਖ਼ਬਰ ਪੜ੍ਹਨ ਲਈ ਹੇਠਾਂ ਬਟਨ ਦਬਾਓ — ਸਿੱਧਾ ਅਖ਼ਬਾਰ ਦੇ ਪੰਨੇ 'ਤੇ ਪੁੱਜੋਗੇ।"}</p>
+      ${kw ? `<div class="whychip">📍 ${kw}${loved?" · ♥ ਪਸੰਦ":""}</div>` : ""}
       <div class="cardfoot">
+        <button class="lovebtn${loved?" on":""}" title="ਇਹੋ ਜਿਹੀਆਂ ਹੋਰ ਖ਼ਬਰਾਂ">${loved?"♥":"♡"}</button>
         <span class="srcname">${x.source}</span>
         <button class="readbtn">ਪੂਰੀ ਖ਼ਬਰ ਪੜ੍ਹੋ →</button>
       </div>
       <div class="stamp">ਪੜ੍ਹਿਆ ✓</div>`;
     c.querySelector(".readbtn").addEventListener("click", ev=>{
       ev.stopPropagation(); openReader(x);
+    });
+    c.querySelector(".lovebtn").addEventListener("click", ev=>{
+      ev.stopPropagation();
+      const btn = ev.currentTarget;
+      if(lovedKw[kw]){ unloveKeyword(kw); btn.classList.remove("on"); btn.textContent="♡";
+        toast("♡ '"+kw+"' ਹਟਾਇਆ"); }
+      else { loveKeyword(kw); btn.classList.add("on"); btn.textContent="♥";
+        toast("♥ '"+kw+"' ਪਸੰਦ — ਹੋਰ ਇਹੋ ਜਿਹੀਆਂ ਖ਼ਬਰਾਂ ਉੱਪਰ ਆਉਣਗੀਆਂ"); }
     });
     attachSwipe(c, w, x);
     w.appendChild(c); frag.appendChild(w);
