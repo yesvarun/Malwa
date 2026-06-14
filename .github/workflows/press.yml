@@ -1,7 +1,7 @@
 name: Press Run
 on:
   schedule:
-    - cron: "7 * * * *"        # every hour at :07 (change to "*/30 * * * *" for every 30 min)
+    - cron: "*/30 * * * *"       # every 30 min (free-tier skips some; this keeps gaps small)
   workflow_dispatch:            # lets you press "Run workflow" by hand
 
 jobs:
