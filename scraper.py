@@ -487,15 +487,17 @@ def main():
         except Exception as e:
             print(f"  ✗ batch {i//BATCH + 1}: {e}")
 
-    # 4. print the edition
+    # 4. print the edition — ONLY stories Claude has read AND judged to be your area
     edition = []
     for x in pool.values():
         c = cache.get(md5(x["title"]), {})
         if x.get("drop") or c.get("fresh") is False:
             continue   # old story — never print
+        if not c.get("summary"):
+            continue   # Claude hasn't read it yet → don't print until it's judged
         reg = c.get("region", x["region"])
         if reg in ("other", "", None):
-            continue   # Claude read it and it's NOT about your places → drop, don't show
+            continue   # Claude read the body and it's NOT your area → drop
         edition.append({
             "title": x["title"],
             "link": x["link"],
