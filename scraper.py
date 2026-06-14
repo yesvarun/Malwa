@@ -259,13 +259,21 @@ Respond with ONLY a JSON array, no markdown fences, no preamble.
         return objs
 
 # ───────── main ─────────
+def _load_json(path, default):
+    if not os.path.exists(path):
+        return default
+    try:
+        txt = open(path, encoding="utf-8").read().strip()
+        if not txt:
+            return default            # empty file → start fresh, don't crash
+        return json.loads(txt)
+    except Exception as e:
+        print(f"  (could not read {path}: {e} — starting fresh)")
+        return default
+
 def main():
-    cache = {}
-    if os.path.exists(CACHE):
-        cache = json.load(open(CACHE, encoding="utf-8"))
-    old_news = []
-    if os.path.exists(OUT):
-        old_news = json.load(open(OUT, encoding="utf-8"))
+    cache = _load_json(CACHE, {})
+    old_news = _load_json(OUT, [])
 
     # 1. collect from every press
     pool = {}
