@@ -344,13 +344,13 @@ For EACH article below, return a JSON object with:
 - "i": article number
 - "summary": 50-80 words, factual, neutral, written in the SAME LANGUAGE as the article (Punjabi stays Punjabi in Gurmukhi, Hindi stays Hindi, English stays English). No opinions added, no hype. This is the short card preview.
 - "digest": a richer 4-6 sentence account in the SAME LANGUAGE — the full who/what/where/when/why, every concrete fact, figure, name and place from the article, written cleanly as a proper news brief so the reader needs nothing else. Still neutral, no opinion, no padding.
-- "region": STRICT. First find the exact town/village where the story's events happen, FROM THE ARTICLE BODY. Then:
-   • "rampura" — ONLY if that town is Rampura Phul, Phul, or a Rampura-Phul-tehsil village.
-   • "bathinda" — ONLY if that town is Bathinda city or a Bathinda-district town (Talwandi Sabo, Maur, Goniana, Bhucho, Rama Mandi, Nathana).
-   • "nearby" — ONLY if that town is Barnala, Tapa, Dhanaula, or Mehal Kalan.
-   • "chandigarh" — ONLY if Chandigarh or Kasauli.
-   • "opinion" — editorial/op-ed with no location.
-   • "other" — for EVERYTHING ELSE. This includes: the body names a different district or town (Fatehgarh Sahib, Jalandhar, Ludhiana, Patiala, anywhere not listed above), OR the body does NOT clearly name a town from the lists above. DO NOT GUESS. DO NOT default to bathinda. If you are not certain the exact named town is one of mine, the answer is "other".
+- "region": Read the FULL story. Decide WHERE THE MAIN EVENTS ACTUALLY HAPPEN — the physical location of what the story reports. A town being merely MENTIONED is NOT enough (e.g. "a Bathinda man died in Jalandhar" is a JALANDHAR story → "other", because the death happened in Jalandhar, not Bathinda). Only after deciding the true event-location, set:
+   • "rampura" — the events happen in Rampura Phul, Phul, or a Rampura-Phul-tehsil village.
+   • "bathinda" — the events happen in Bathinda city or a Bathinda-district town (Talwandi Sabo, Maur, Goniana, Bhucho, Rama Mandi, Nathana).
+   • "nearby" — the events happen in Barnala, Tapa, Dhanaula, or Mehal Kalan.
+   • "chandigarh" — the events happen in Chandigarh or Kasauli.
+   • "other" — for EVERYTHING else: events happen in another district/town, OR the story is general/state/national/international, OR you cannot clearly tell the events are in one of my towns. When unsure, the answer is "other".
+   Judge ONLY by where the events happen, never by which town names appear in the headline.
 - "lang": "pa", "hi" or "en".
 - "fresh": true normally; false ONLY if the text clearly reports events from more than 3 days ago (old dates, last year, anniversary retrospectives, recycled stories).
 - "place": the single specific place the story is mainly about, taken from the article matter (e.g. "Rampura Phul", "Bathinda", "Talwandi Sabo", "Barnala", "Kasauli", "Chandigarh", or a village name). Use the same script as the article. One short place name only.
@@ -521,16 +521,11 @@ def main():
         if not c.get("summary"):
             continue   # Claude hasn't read it yet → don't print until it's judged
         reg = c.get("region", x["region"])
-        if reg in ("other", "opinion", "", None):
-            continue   # not your area (or opinion with no place) → drop
-        # STRICT: the story MUST name a real place from your lists, in title/summary/place.
-        # This applies to EVERY region. International / general stories name no such place → dropped.
-        blob = (x["title"] + " " + c.get("summary","") + " " + (c.get("place","") or "")).lower()
-        ALL_PLACES = (REGION_TOWNS["rampura"] + REGION_TOWNS["bathinda"]
-                      + REGION_TOWNS["nearby"] + REGION_TOWNS["chandigarh"])
-        names_a_place = any(_wordmatch(t.lower(), blob) for t in ALL_PLACES)
-        if not names_a_place:
-            continue   # must name a real local town/village — nothing else qualifies
+        # Trust ONLY Claude's judgment of where the events happen (it read the full story).
+        # No word-matching on titles here — that is exactly what caused "Bathinda in headline"
+        # stories about other places to leak. Claude's region is the sole decider.
+        if reg not in ("rampura", "bathinda", "nearby", "chandigarh"):
+            continue   # other / opinion / unread-fallback / anything else → drop
         edition.append({
             "title": x["title"],
             "link": x["link"],
