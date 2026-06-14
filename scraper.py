@@ -108,14 +108,33 @@ def _wordmatch(term, blob):
     return re.search(r"(^|[\s,.\-–—:;\"'(])" + re.escape(term) + r"($|[\s,.\-–—:;\"')])", blob) is not None
 
 # which towns belong to which region — used to TAG a story by what it actually names
+# RAMPURA_VILLAGES: official Census-2011 list of all 75 villages in Rampura Phul tehsil.
+RAMPURA_VILLAGES = [
+    "rampura phul","rampura","phul","maharaj","mehraj","kot fatta","chathewala",
+    "adampura","aklia jalal","allike","badlala","balianwala","balloh","bhai rupa",
+    "bhaini chuhar","bhodipura","bhunder","bugran","burj gill","burj ladha singhwala",
+    "burj mansa","burj thror","chaoke","chauke","chotian","daulatpura","dayalpura mirza",
+    "dhade","dhapali","dhingar","dikh","dulewala","dyalpura bhaika","gaunspura","ghandawna",
+    "ghurela","ghureli","gill kalan","gill khurd","gumti kalan","gurusar","hakam singhwala",
+    "hamirgarh","har kishanpura","harnam singhwala","jaidan","jalal","jeondan","jethuke",
+    "jhanduke","kangar","kararwala","kauloke","kesar singhwala","khokhar","koer singhwala",
+    "kotha guru","kotra korianwala","maluka","mandi kalan","mandi khurd","mansa khurd",
+    "nandgarh kotra","neor","patti kala mehraj","patti karam chand mehraj","patti sandli mehraj",
+    "patti saol mehraj","phulewala","pirkot","pitho","raiya","rajgarh","ram niwas","ramuwala",
+    "sadhana","sidhana","salabatpura","sandhu khurd","selbrah","siriewala","sooch","bhagta bhai ka",
+    "bhagta",
+    # Gurmukhi for the most common ones
+    "ਰਾਮਪੁਰਾ ਫੂਲ","ਰਾਮਪੁਰਾ","ਫੂਲ","ਮਹਿਰਾਜ","ਕੋਟ ਫੱਤਾ","ਚੱਠੇਵਾਲਾ","ਭਾਈ ਰੂਪਾ","ਕੋਠਾ ਗੁਰੂ",
+    "ਚਾਉਕੇ","ਮੰਡੀ ਕਲਾਂ","ਮਲੂਕਾ","ਜਲਾਲ","ਧਪਾਲੀ","ਜੇਠੂਕੇ","ਝੰਡੂਕੇ","ਕੰਗੜ","ਪਿੱਥੋ","ਚੋਟੀਆਂ",
+    "ਦਿਆਲਪੁਰਾ ਭਾਈਕਾ","ਗਿੱਲ ਕਲਾਂ","ਭਗਤਾ ਭਾਈ ਕਾ","ਭਗਤਾ","ਸੇਲਬਰਾਹ","ਭੁੰਦੜ","ਬੁਰਜ ਮਾਨਸਾ",
+    "रामपुरा फूल","रामपुरा","फूल","महिराज","भाई रूपा","कोठा गुरू","मलूका","मालवा",
+]
 REGION_TOWNS = {
-    "rampura": ["rampura phul","rampura","phul","maharaj","kot fatta","chathewala",
-                "ਰਾਮਪੁਰਾ ਫੂਲ","ਰਾਮਪੁਰਾ","ਫੂਲ","ਮਹਿਰਾਜ","ਕੋਟ ਫੱਤਾ","ਚੱਠੇਵਾਲਾ",
-                "रामपुरा फूल","रामपुरा","फूल","महिराज","कोट फत्ता"],
+    "rampura": RAMPURA_VILLAGES,
     "nearby":  ["barnala","tapa","dhanaula","mehal kalan","ਬਰਨਾਲਾ","ਤਪਾ","ਧਨੌਲਾ","ਮਹਿਲ ਕਲਾਂ",
                 "बरनाला","तपा","धनौला"],
-    "bathinda":["bathinda","bhatinda","talwandi sabo","maur mandi","goniana","bhucho","rama mandi",
-                "nathana","ਬਠਿੰਡਾ","ਤਲਵੰਡੀ ਸਾਬੋ","ਮੌੜ ਮੰਡੀ","ਗੋਨਿਆਣਾ","ਭੁੱਚੋ","ਨਥਾਣਾ",
+    "bathinda":["bathinda","bhatinda","talwandi sabo","maur mandi","maur","goniana","bhucho","rama mandi",
+                "nathana","raman","sangat","bhagta","ਬਠਿੰਡਾ","ਤਲਵੰਡੀ ਸਾਬੋ","ਮੌੜ ਮੰਡੀ","ਮੌੜ","ਗੋਨਿਆਣਾ","ਭੁੱਚੋ","ਨਥਾਣਾ",
                 "बठिंडा","भटिंडा","तलवंडी साबो","मौड़ मंडी","गोनियाना","भुच्चो","नथाना"],
     "chandigarh":["chandigarh","kasauli","ਚੰਡੀਗੜ੍ਹ","ਕਸੌਲੀ","चंडीगढ़","कसौली"],
 }
@@ -325,7 +344,13 @@ For EACH article below, return a JSON object with:
 - "i": article number
 - "summary": 50-80 words, factual, neutral, written in the SAME LANGUAGE as the article (Punjabi stays Punjabi in Gurmukhi, Hindi stays Hindi, English stays English). No opinions added, no hype. This is the short card preview.
 - "digest": a richer 4-6 sentence account in the SAME LANGUAGE — the full who/what/where/when/why, every concrete fact, figure, name and place from the article, written cleanly as a proper news brief so the reader needs nothing else. Still neutral, no opinion, no padding.
-- "region": based on where the story's events actually happen — "rampura" (Rampura Phul / Phul town / Rampura tehsil villages), "bathinda" (Bathinda city/district incl. Talwandi Sabo, Maur, Goniana, Bhucho, Rama Mandi, Nathana), "nearby" (Barnala, Tapa, Dhanaula, Mehal Kalan), "chandigarh" (Chandigarh/Kasauli), "opinion" (editorial/op-ed), or "other" if the story is NOT really about any of these places (e.g. it happened at the Ravi river, another district, or elsewhere). Be honest — do NOT force a story into bathinda or any region if it does not belong there. Use "other" in that case.
+- "region": STRICT. First find the exact town/village where the story's events happen, FROM THE ARTICLE BODY. Then:
+   • "rampura" — ONLY if that town is Rampura Phul, Phul, or a Rampura-Phul-tehsil village.
+   • "bathinda" — ONLY if that town is Bathinda city or a Bathinda-district town (Talwandi Sabo, Maur, Goniana, Bhucho, Rama Mandi, Nathana).
+   • "nearby" — ONLY if that town is Barnala, Tapa, Dhanaula, or Mehal Kalan.
+   • "chandigarh" — ONLY if Chandigarh or Kasauli.
+   • "opinion" — editorial/op-ed with no location.
+   • "other" — for EVERYTHING ELSE. This includes: the body names a different district or town (Fatehgarh Sahib, Jalandhar, Ludhiana, Patiala, anywhere not listed above), OR the body does NOT clearly name a town from the lists above. DO NOT GUESS. DO NOT default to bathinda. If you are not certain the exact named town is one of mine, the answer is "other".
 - "lang": "pa", "hi" or "en".
 - "fresh": true normally; false ONLY if the text clearly reports events from more than 3 days ago (old dates, last year, anniversary retrospectives, recycled stories).
 - "place": the single specific place the story is mainly about, taken from the article matter (e.g. "Rampura Phul", "Bathinda", "Talwandi Sabo", "Barnala", "Kasauli", "Chandigarh", or a village name). Use the same script as the article. One short place name only.
@@ -498,6 +523,17 @@ def main():
         reg = c.get("region", x["region"])
         if reg in ("other", "", None):
             continue   # Claude read the body and it's NOT your area → drop
+        # SAFETY NET: verify Claude's region against the place it actually named.
+        # If Claude said rampura/bathinda/nearby but the named place is NOT a known
+        # home town, Claude guessed — downgrade to 'other' and drop. (chandigarh/opinion exempt.)
+        if reg in ("rampura","bathinda","nearby"):
+            place = (c.get("place","") or "").lower()
+            known = place and any(_wordmatch(t.lower(), place) for t in
+                                  REGION_TOWNS["rampura"]+REGION_TOWNS["bathinda"]+REGION_TOWNS["nearby"])
+            has_mela = any(_wordmatch(t.lower(), (x["title"]+" "+c.get("summary","")).lower())
+                           for t in MELA_TERMS)
+            if not known and not has_mela:
+                continue   # region was a guess, place isn't really mine → drop
         edition.append({
             "title": x["title"],
             "link": x["link"],
