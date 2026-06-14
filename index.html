@@ -548,12 +548,8 @@ function mergeItems(fresh){
       if(!old.image && f.image) old.image = f.image;
       if(!old.summary && f.summary) old.summary = f.summary;
       if(REGION_W[f.region] > REGION_W[old.region]) old.region = f.region;
-    }else if(!dismissed.has(f.id) && !f.enrich && (f.pref || inMyArea(f))){
-      if(!f.pref){
-        const r = detectRegion(f, f.region);
-        if(r==="other") continue;      // no known local place → drop
-        f.region = r;
-      }
+    }else if(!dismissed.has(f.id) && !f.enrich && f.pref){
+      // ONLY Claude-read & approved stories (f.pref). No live unread RSS — kills all leaks.
       byId.set(f.id,f); added++;
     }
   }

@@ -521,19 +521,16 @@ def main():
         if not c.get("summary"):
             continue   # Claude hasn't read it yet → don't print until it's judged
         reg = c.get("region", x["region"])
-        if reg in ("other", "", None):
-            continue   # Claude read the body and it's NOT your area → drop
-        # SAFETY NET: verify Claude's region against the place it actually named.
-        # If Claude said rampura/bathinda/nearby but the named place is NOT a known
-        # home town, Claude guessed — downgrade to 'other' and drop. (chandigarh/opinion exempt.)
-        if reg in ("rampura","bathinda","nearby"):
-            place = (c.get("place","") or "").lower()
-            known = place and any(_wordmatch(t.lower(), place) for t in
-                                  REGION_TOWNS["rampura"]+REGION_TOWNS["bathinda"]+REGION_TOWNS["nearby"])
-            has_mela = any(_wordmatch(t.lower(), (x["title"]+" "+c.get("summary","")).lower())
-                           for t in MELA_TERMS)
-            if not known and not has_mela:
-                continue   # region was a guess, place isn't really mine → drop
+        if reg in ("other", "opinion", "", None):
+            continue   # not your area (or opinion with no place) → drop
+        # STRICT: the story MUST name a real place from your lists, in title/summary/place.
+        # This applies to EVERY region. International / general stories name no such place → dropped.
+        blob = (x["title"] + " " + c.get("summary","") + " " + (c.get("place","") or "")).lower()
+        ALL_PLACES = (REGION_TOWNS["rampura"] + REGION_TOWNS["bathinda"]
+                      + REGION_TOWNS["nearby"] + REGION_TOWNS["chandigarh"])
+        names_a_place = any(_wordmatch(t.lower(), blob) for t in ALL_PLACES)
+        if not names_a_place:
+            continue   # must name a real local town/village — nothing else qualifies
         edition.append({
             "title": x["title"],
             "link": x["link"],
