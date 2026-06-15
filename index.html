@@ -98,6 +98,17 @@ body{
   box-shadow:1.5px 1.5px 0 rgba(29,26,20,.5);
 }
 #presshouse:active{transform:translate(1px,1px);box-shadow:none}
+/* round restart button — reloads (force-restarts) the app */
+#restartbtn{
+  position:fixed;z-index:45;left:14px;
+  bottom:calc(env(safe-area-inset-bottom,0px) + 14px);
+  width:46px;height:46px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;line-height:1;
+  border:1.4px solid var(--ink);background:var(--paper);color:var(--ink);
+  box-shadow:1.5px 1.5px 0 rgba(29,26,20,.5);cursor:pointer;
+}
+#restartbtn:active{transform:translate(1px,1px);box-shadow:none}
 
 /* ── feed (vertical shorts) ── */
 #feed{
@@ -317,7 +328,7 @@ body{
     <span id="dl-pa">—</span><span id="dl-en">Rampura Phul Edn.</span><span id="dl-count">—</span>
   </div>
   <button id="presshouse">❦ ਛਾਪਾਖ਼ਾਨਾ</button>
-  <button id="pressbtn">↻ ਤਾਜ਼ਾ ਖ਼ਬਰਾਂ ਲਿਆਓ</button>
+  <button id="pressbtn">ਬਾਹਰੀ</button>
 </header>
 
 <nav id="chips">
@@ -339,6 +350,7 @@ body{
 
 <div id="hint">⇠ ਪੜ੍ਹੀ ਖ਼ਬਰ ਪਾਸੇ ਸੁੱਟੋ &nbsp;·&nbsp; ਉੱਪਰ ਸਰਕਾਓ ⇡ ਅਗਲੀ ਖ਼ਬਰ</div>
 <div id="toast"></div>
+<button id="restartbtn" aria-label="Restart" title="Restart">↻</button>
 
 <div id="loader">
   <span class="wheel">✺</span>
@@ -981,6 +993,9 @@ pressHouse.addEventListener("click", e=>{
   e.stopPropagation();
   window.open("https://github.com/yesvarun/Malwa/actions/workflows/press.yml","_blank");
 });
+
+/* round restart button — force-reloads the app (fresh boot, latest deploy) */
+document.getElementById("restartbtn").addEventListener("click", ()=>location.reload());
 
 let pressTimer=null;
 const mast = document.getElementById("masthead");
