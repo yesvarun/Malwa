@@ -76,8 +76,28 @@ body{
 .chip.lat{font-family:var(--fellsc);letter-spacing:1px;font-size:12px}
 .chip.on{background:var(--ink);color:var(--paper);box-shadow:none;transform:translate(1px,1px)}
 .chip.red.on{background:var(--stamp);border-color:var(--stamp)}
-#spikebtn{border-style:dotted;border-color:var(--blue);color:var(--blue)}
-#spikebtn.on{background:var(--blue);border-color:var(--blue);color:var(--paper);box-shadow:none;transform:translate(1px,1px)}
+/* "ਤਾਜ਼ਾ ਖ਼ਬਰਾਂ ਲਿਆਓ" — visible top-right button; secretly opens The Spike (cut news) */
+#pressbtn{
+  position:fixed;z-index:50;
+  top:calc(env(safe-area-inset-top,0px) + 7px);right:9px;
+  font-family:var(--serif-pa);font-size:10.5px;line-height:1;letter-spacing:.2px;
+  padding:6px 9px;border:1.3px solid var(--ink);border-radius:3px;
+  background:var(--paper);color:var(--ink);cursor:pointer;
+  box-shadow:1.5px 1.5px 0 rgba(29,26,20,.5);
+}
+#pressbtn:active{transform:translate(1px,1px);box-shadow:none}
+#pressbtn.on{background:var(--stamp);border-color:var(--stamp);color:var(--paper)}
+#pressbtn.loading{opacity:.5}
+/* "ਛਾਪਾਖ਼ਾਨਾ" — visible top-left button; secretly opens GitHub (the press room) */
+#presshouse{
+  position:fixed;z-index:50;
+  top:calc(env(safe-area-inset-top,0px) + 7px);left:9px;
+  font-family:var(--serif-pa);font-size:10.5px;line-height:1;letter-spacing:.2px;
+  padding:6px 9px;border:1.3px solid var(--ink);border-radius:3px;
+  background:var(--paper);color:var(--ink);cursor:pointer;
+  box-shadow:1.5px 1.5px 0 rgba(29,26,20,.5);
+}
+#presshouse:active{transform:translate(1px,1px);box-shadow:none}
 
 /* ── feed (vertical shorts) ── */
 #feed{
@@ -296,7 +316,8 @@ body{
   <div id="dateline">
     <span id="dl-pa">—</span><span id="dl-en">Rampura Phul Edn.</span><span id="dl-count">—</span>
   </div>
-  <button id="pressbtn" onclick="event.stopPropagation();window.open('https://github.com/yesvarun/Malwa/actions/workflows/press.yml','_blank')">↻ ਤਾਜ਼ਾ ਖ਼ਬਰਾਂ ਲਿਆਓ</button>
+  <button id="presshouse">❦ ਛਾਪਾਖ਼ਾਨਾ</button>
+  <button id="pressbtn">↻ ਤਾਜ਼ਾ ਖ਼ਬਰਾਂ ਲਿਆਓ</button>
 </header>
 
 <nav id="chips">
@@ -310,7 +331,6 @@ body{
   <button class="chip red" data-k="reg" data-v="nearby">ਬਰਨਾਲਾ–ਤਪਾ</button>
   <button class="chip red" data-k="reg" data-v="chandigarh">ਚੰਡੀਗੜ੍ਹ</button>
   <button class="chip red" data-k="reg" data-v="opinion">ਰਾਇ · Opinion</button>
-  <button class="chip" id="spikebtn">✂ ਛਪਣੋਂ ਰਹਿ ਗਈਆਂ</button>
   <button class="chip" id="clearall" style="border-style:dashed;margin-left:auto">ਸਭ ਸਾਫ਼ ✕</button>
   <button class="chip" id="installbtn" style="display:none;background:var(--blue);color:var(--paper);border-color:var(--blue)" onclick="doInstall()">⤓ ਐਪ</button>
 </nav>
@@ -932,32 +952,35 @@ document.getElementById("clearall").addEventListener("click", ()=>{
 
 document.getElementById("chips").addEventListener("click", e=>{
   const b = e.target.closest(".chip"); if(!b || b.id==="clearall" || b.id==="installbtn") return;
-  if(b.id==="spikebtn"){ toggleSpike(b); return; }
   document.querySelectorAll(`.chip[data-k="${b.dataset.k}"]`).forEach(c=>c.classList.remove("on"));
   b.classList.add("on");
   if(b.dataset.k==="lang") filterLang=b.dataset.v; else filterReg=b.dataset.v;
   // tapping a place filter leaves The Spike and returns to the edition
-  if(b.dataset.k==="reg" && extrasMode){
-    extrasMode=false;
-    const s=document.getElementById("spikebtn"); if(s) s.classList.remove("on");
-  }
+  if(b.dataset.k==="reg" && extrasMode) exitSpike();
   render(false); feedEl.scrollTop=0;
 });
 
-const SPIKE_LABEL = "✂ ਛਪਣੋਂ ਰਹਿ ਗਈਆਂ";
-async function toggleSpike(btn){
+/* "ਤਾਜ਼ਾ ਖ਼ਬਰਾਂ ਲਿਆਓ" is the disguised door to The Spike (the cut-news pile) */
+const pressBtn = document.getElementById("pressbtn");
+function exitSpike(){ extrasMode=false; pressBtn.classList.remove("on"); }
+async function toggleSpike(){
   if(extrasBusy) return;
-  if(extrasMode){                       // turn off → back to the edition
-    extrasMode=false; btn.classList.remove("on");
-    render(false); feedEl.scrollTop=0; return;
-  }
-  extrasBusy=true; btn.classList.add("on"); btn.textContent="✂ …";
+  if(extrasMode){ exitSpike(); render(false); feedEl.scrollTop=0; return; }
+  extrasBusy=true; pressBtn.classList.add("loading");
   await loadExtras();                   // always pull fresh when opening
-  extrasBusy=false; btn.textContent=SPIKE_LABEL;
-  extrasMode=true;
+  extrasBusy=false; pressBtn.classList.remove("loading");
+  extrasMode=true; pressBtn.classList.add("on");
   render(false); feedEl.scrollTop=0;
   if(!extras.length) toast("ਇਸ ਵੇਲੇ ਛਪਣੋਂ ਰਹਿ ਗਈ ਕੋਈ ਖ਼ਬਰ ਨਹੀਂ");
 }
+pressBtn.addEventListener("click", e=>{ e.stopPropagation(); toggleSpike(); });
+
+/* "ਛਾਪਾਖ਼ਾਨਾ" — disguised door to GitHub (opens the Actions/press-run page) */
+const pressHouse = document.getElementById("presshouse");
+pressHouse.addEventListener("click", e=>{
+  e.stopPropagation();
+  window.open("https://github.com/yesvarun/Malwa/actions/workflows/press.yml","_blank");
+});
 
 let pressTimer=null;
 const mast = document.getElementById("masthead");
