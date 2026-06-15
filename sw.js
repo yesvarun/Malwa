@@ -3,8 +3,13 @@
    - index.html + *.json  → network-first (fresh when online, cached copy only when offline)
    - icons / manifest      → cache-first (rarely change, instant load)
    - fonts / images/proxy  → network, fall back to cache
-   Bump CACHE only when you change the SHELL list below. */
-const CACHE = "malwa-v1";
+
+   ┌──────────────────────────────────────────────────────────────┐
+   │  AFTER EVERY DEPLOY: bump the number below (v2 → v3 → v4 …).   │
+   │  That wipes the old cache so your phone can't serve stale     │
+   │  files — it MUST fetch the fresh build.                       │
+   └──────────────────────────────────────────────────────────────┘ */
+const CACHE = "malwa-v2";
 
 /* relative paths → work under any GitHub Pages subpath (…/Malwa/) */
 const SHELL = [
@@ -13,11 +18,18 @@ const SHELL = [
 ];
 
 self.addEventListener("install", e => {
-  e.waitUntil(
-    caches.open(CACHE)
-      .then(c => c.addAll(SHELL))
-      .then(() => self.skipWaiting())          // new SW takes over right away
-  );
+  e.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    /* fetch each shell file FRESH (bypass the browser's HTTP cache) so a
+       version bump can never re-cache a stale index.html on install */
+    await Promise.all(SHELL.map(async url => {
+      try {
+        const res = await fetch(new Request(url, { cache: "reload" }));
+        if (res.ok) await cache.put(url, res);
+      } catch (_) { /* offline during install — fine, network-first covers it */ }
+    }));
+    await self.skipWaiting();                    // new SW takes over right away
+  })());
 });
 
 self.addEventListener("activate", e => {
