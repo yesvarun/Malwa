@@ -22,6 +22,7 @@ MAX_NEW_PER_RUN= 40          # cap Claude reads per run so it stays fast; backlo
 BATCH          = 5           # articles per Claude call (smaller = no truncation now we ask for digests)
 OUT            = "news.json"
 CACHE          = "claude_cache.json"
+EXTRAS         = "extras.json"   # stories Claude READ but judged out-of-area — "The Spike"
 UA = {"User-Agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 "
                     "(KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36"}
 
@@ -512,28 +513,29 @@ def main():
         except Exception as e:
             print(f"  ✗ batch {i//BATCH + 1}: {e}")
 
-    # 4. print the edition — ONLY stories Claude has read AND judged to be your area
+    # 4. print the edition — ONLY stories Claude has read AND judged to be your area.
+    #    Stories Claude read but judged OUT-OF-AREA go to "The Spike" (extras.json) instead
+    #    of being thrown away — same full fields, so the app can show them on demand.
     edition = []
+    extras  = []
     for x in pool.values():
         c = cache.get(md5(x["title"]), {})
         if x.get("drop") or c.get("fresh") is False:
             continue   # old story — never print
         if not c.get("summary"):
-            continue   # Claude hasn't read it yet → don't print until it's judged
+            continue   # Claude hasn't read it yet → don't judge it until it's read
         reg = c.get("region", x["region"])
         # Trust ONLY Claude's judgment of where the events happen (it read the full story).
         # No word-matching on titles here — that is exactly what caused "Bathinda in headline"
         # stories about other places to leak. Claude's region is the sole decider.
-        if reg not in ("rampura", "bathinda", "nearby", "chandigarh"):
-            continue   # other / opinion / unread-fallback / anything else → drop
-        edition.append({
+        row = {
             "title": x["title"],
             "link": x["link"],
             "summary": c.get("summary") or x.get("snippet") or x.get("summary", ""),
             "digest": c.get("digest", ""),
             "image": x.get("image", ""),
             "lang": c.get("lang", x["lang"]),
-            "region": c.get("region", x["region"]),
+            "region": reg,
             "matched": x.get("matched",""),
             "place": c.get("place","") or x.get("matched",""),
             "topic": c.get("topic",""),
@@ -541,7 +543,11 @@ def main():
             "date": x["date"],
             "source": x["source"],
             "id": x["id"],
-        })
+        }
+        if reg not in ("rampura", "bathinda", "nearby", "chandigarh"):
+            extras.append(row)   # out-of-area → spiked (didn't make print), kept for the app
+            continue
+        edition.append(row)
     edition.sort(key=lambda e: (-REGION_W.get(e["region"], 0), e["date"]), reverse=False)
     edition.sort(key=lambda e: e["date"], reverse=True)
     edition.sort(key=lambda e: -REGION_W.get(e["region"], 0))
@@ -559,6 +565,11 @@ def main():
 
     json.dump(edition, open(OUT, "w", encoding="utf-8"),
               ensure_ascii=False, indent=1)
+    # The Spike — out-of-area stories Claude read but didn't print (newest first, capped)
+    extras.sort(key=lambda e: e["date"], reverse=True)
+    extras = extras[:60]
+    json.dump(extras, open(EXTRAS, "w", encoding="utf-8"),
+              ensure_ascii=False, indent=1)
     # CACHE holds ONLY last-12-hour stories — drop anything older every run
     pruned = {}
     for k, v in cache.items():
@@ -575,7 +586,7 @@ def main():
             continue
     cache = pruned
     json.dump(cache, open(CACHE, "w", encoding="utf-8"), ensure_ascii=False)
-    print(f"🗞️  printed {len(edition)} stories → {OUT} · cache now {len(cache)} (≤12h)")
+    print(f"🗞️  printed {len(edition)} → {OUT} · spiked {len(extras)} → {EXTRAS} · cache now {len(cache)} (≤12h)")
 
 if __name__ == "__main__":
     main()

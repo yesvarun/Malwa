@@ -76,6 +76,8 @@ body{
 .chip.lat{font-family:var(--fellsc);letter-spacing:1px;font-size:12px}
 .chip.on{background:var(--ink);color:var(--paper);box-shadow:none;transform:translate(1px,1px)}
 .chip.red.on{background:var(--stamp);border-color:var(--stamp)}
+#spikebtn{border-style:dotted;border-color:var(--blue);color:var(--blue)}
+#spikebtn.on{background:var(--blue);border-color:var(--blue);color:var(--paper);box-shadow:none;transform:translate(1px,1px)}
 
 /* ── feed (vertical shorts) ── */
 #feed{
@@ -308,6 +310,7 @@ body{
   <button class="chip red" data-k="reg" data-v="nearby">ਬਰਨਾਲਾ–ਤਪਾ</button>
   <button class="chip red" data-k="reg" data-v="chandigarh">ਚੰਡੀਗੜ੍ਹ</button>
   <button class="chip red" data-k="reg" data-v="opinion">ਰਾਇ · Opinion</button>
+  <button class="chip" id="spikebtn">✂ ਛਪਣੋਂ ਰਹਿ ਗਈਆਂ</button>
   <button class="chip" id="clearall" style="border-style:dashed;margin-left:auto">ਸਭ ਸਾਫ਼ ✕</button>
   <button class="chip" id="installbtn" style="display:none;background:var(--blue);color:var(--paper);border-color:var(--blue)" onclick="doInstall()">⤓ ਐਪ</button>
 </nav>
@@ -352,6 +355,7 @@ body{
 const HOURS_BACK   = 12;          // only last 12 hours
 const REFRESH_MIN  = 20;          // background check interval (gentle, non-disruptive)
 const EXTRA_JSON_URL = "news.json"; // AI press room output (GitHub Actions + Claude). Items here carry AI summaries.
+const EXTRAS_JSON_URL = "extras.json"; // "The Spike": stories Claude read but judged out-of-area (didn't make print).
 
 const PROXIES = [
   u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
@@ -439,7 +443,7 @@ function matchedKeyword(x){
   return x.matched||"";
 }
 
-const REGION_LABEL = {rampura:"ਰਾਮਪੁਰਾ ਫੂਲ", bathinda:"ਬਠਿੰਡਾ", nearby:"ਬਰਨਾਲਾ–ਤਪਾ", chandigarh:"ਚੰਡੀਗੜ੍ਹ", opinion:"ਰਾਇ"};
+const REGION_LABEL = {rampura:"ਰਾਮਪੁਰਾ ਫੂਲ", bathinda:"ਬਠਿੰਡਾ", nearby:"ਬਰਨਾਲਾ–ਤਪਾ", chandigarh:"ਚੰਡੀਗੜ੍ਹ", opinion:"ਰਾਇ", other:"ਹੋਰ ਥਾਂ"};
 const REGION_W = {rampura:40, bathinda:30, nearby:20, chandigarh:14, opinion:6};
 const MELA_TERMS = ["mela","fair","festival","ਮੇਲਾ","ਮੇਲੇ","ਜੋੜ ਮੇਲਾ","ਤਿਉਹਾਰ","मेला","मेले","जोड़ मेला","त्योहार","fete","carnival"];
 
@@ -468,6 +472,7 @@ const ORN = ["❦","✦","❧","✺","☙","✼"];
 
 /* ═════════════ STATE ═════════════ */
 let items=[], filterLang="all", filterReg="all";
+let extras=[], extrasMode=false, extrasBusy=false;   // "The Spike" — loaded on demand
 let health={}, audioCtx=null, firstSwipeDone=false;
 
 /* permanent read-memory (survives closing the app; per device) */
@@ -577,6 +582,16 @@ async function loadEdition(){   // the AI press room file — fast, this is what
   }catch(e){ health["news.json (AI press)"]="FAIL · "+e.message; return 0; }
 }
 
+async function loadExtras(){   // "The Spike" — out-of-area stories Claude read but didn't print
+  try{
+    const r = await fetch(EXTRAS_JSON_URL,{cache:"no-store"}); const arr = await r.json();
+    extras = arr.map(x=>({ ...x, pref:true, id:x.id||normKey(x.title), date:new Date(x.date) }))
+                .filter(x=>(Date.now()-x.date)<HOURS_BACK*3600e3);
+    health["extras.json (spike)"]="OK · "+arr.length+" items";
+  }catch(e){ extras=[]; health["extras.json (spike)"]="FAIL · "+e.message; }
+  return extras.length;
+}
+
 async function pressRun(initial){   // the slow live feeds — run in background
   let done=0, added=0;
   await Promise.all(FEEDS.map(async f=>{
@@ -650,6 +665,11 @@ function ago(d){
   return "ਕੱਲ੍ਹ";
 }
 function visible(){
+  if(extrasMode){   // "The Spike": flat list, no region filter (these are all out-of-area)
+    return extras.filter(x=>!dismissed.has(x.id) && !isDisliked(x)
+        && (filterLang==="all"||x.lang===filterLang))
+      .sort((a,b)=>{ const lb=loveBoost(b)-loveBoost(a); if(lb) return lb; return b.date-a.date; });
+  }
   let list = items.filter(x=>!dismissed.has(x.id)
     && !isDisliked(x)
     && x.region!=="other"
@@ -677,6 +697,7 @@ function render(keepScroll){
   const y = keepScroll ? feedEl.scrollTop : 0;
   const list = visible();
   document.getElementById("dl-count").textContent = list.length+" ਖ਼ਬਰਾਂ";
+  document.getElementById("dl-en").textContent = extrasMode ? "The Spike · left out" : "Rampura Phul Edn.";
   document.getElementById("empty").style.display = list.length? "none":"flex";
   feedEl.innerHTML = "";
   const frag = document.createDocumentFragment();
@@ -911,11 +932,32 @@ document.getElementById("clearall").addEventListener("click", ()=>{
 
 document.getElementById("chips").addEventListener("click", e=>{
   const b = e.target.closest(".chip"); if(!b || b.id==="clearall" || b.id==="installbtn") return;
+  if(b.id==="spikebtn"){ toggleSpike(b); return; }
   document.querySelectorAll(`.chip[data-k="${b.dataset.k}"]`).forEach(c=>c.classList.remove("on"));
   b.classList.add("on");
   if(b.dataset.k==="lang") filterLang=b.dataset.v; else filterReg=b.dataset.v;
+  // tapping a place filter leaves The Spike and returns to the edition
+  if(b.dataset.k==="reg" && extrasMode){
+    extrasMode=false;
+    const s=document.getElementById("spikebtn"); if(s) s.classList.remove("on");
+  }
   render(false); feedEl.scrollTop=0;
 });
+
+const SPIKE_LABEL = "✂ ਛਪਣੋਂ ਰਹਿ ਗਈਆਂ";
+async function toggleSpike(btn){
+  if(extrasBusy) return;
+  if(extrasMode){                       // turn off → back to the edition
+    extrasMode=false; btn.classList.remove("on");
+    render(false); feedEl.scrollTop=0; return;
+  }
+  extrasBusy=true; btn.classList.add("on"); btn.textContent="✂ …";
+  await loadExtras();                   // always pull fresh when opening
+  extrasBusy=false; btn.textContent=SPIKE_LABEL;
+  extrasMode=true;
+  render(false); feedEl.scrollTop=0;
+  if(!extras.length) toast("ਇਸ ਵੇਲੇ ਛਪਣੋਂ ਰਹਿ ਗਈ ਕੋਈ ਖ਼ਬਰ ਨਹੀਂ");
+}
 
 let pressTimer=null;
 const mast = document.getElementById("masthead");
