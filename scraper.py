@@ -20,7 +20,7 @@ GROQ_KEY       = os.environ.get("GROQ_API_KEY", "").strip()
 GEMINI_MODEL   = "gemini-2.5-flash"          # free; good Punjabi/Hindi
 GROQ_MODEL     = "llama-3.3-70b-versatile"   # free; fast, multilingual
 HOURS_BACK     = 12
-MAX_NEW_PER_RUN= 200         # two AIs share the load → higher throughput per run
+MAX_NEW_PER_RUN= 120         # paced reading respects rate limits; clears backlog over 2-3 runs
 BATCH          = 5           # articles per call
 OUT            = "news.json"
 CACHE          = "claude_cache.json"
@@ -566,8 +566,7 @@ def main():
         list(tpool.map(enrich, fresh))
     fresh = [x for x in fresh if not x.get("drop")]
 
-    # split into batches, alternate providers (Gemini/Groq), run them ALL in parallel
-    from concurrent.futures import ThreadPoolExecutor, as_completed
+    # split into batches, alternate providers (Gemini/Groq), read them paced & sequential
     batches = []
     for i in range(0, len(fresh), BATCH):
         provider = "gemini" if (i // BATCH) % 2 == 0 else "groq"
@@ -576,28 +575,24 @@ def main():
         if not GEMINI_KEY: provider = "groq"
         batches.append((i // BATCH + 1, fresh[i:i + BATCH], provider))
 
-    def run_batch(args):
-        num, chunk, provider = args
-        import time as _t
-        _t.sleep((num % 3) * 1.5)   # small stagger so workers don't all fire at once
+    # Read sequentially but ALTERNATE providers, with a delay that respects per-minute limits.
+    # Gemini and Groq each get a request only every ~8s → well under their per-minute caps.
+    import time as _t
+    for idx, (num, chunk, provider) in enumerate(batches):
         try:
             results = claude_read(chunk, provider)
-            return (num, provider, chunk, results, None)
+            err = None
         except Exception as e:
-            return (num, provider, chunk, [], str(e))
-
-    # limited parallelism so we respect each provider's per-minute limits
-    with ThreadPoolExecutor(max_workers=3) as bpool:
-        for num, provider, chunk, results, err in bpool.map(run_batch, batches):
-            if err:
-                print(f"  ✗ batch {num} ({provider}): {err}")
-                continue
+            results, err = [], str(e)
+        if err:
+            print(f"  ✗ batch {num} ({provider}): {err}")
+        else:
             ok = 0
             for res in results:
-                idx = res.get("i")
-                if not isinstance(idx, int) or idx < 1 or idx > len(chunk):
+                ridx = res.get("i")
+                if not isinstance(ridx, int) or ridx < 1 or ridx > len(chunk):
                     continue
-                a = chunk[idx - 1]
+                a = chunk[ridx - 1]
                 if not res.get("summary"):
                     continue
                 cache[md5(a["title"])] = {
@@ -612,6 +607,7 @@ def main():
                 }
                 ok += 1
             print(f"  read batch {num} ({provider}, {ok} ok)")
+        _t.sleep(4)   # ~4s between batches; each provider hit only every ~8s → under rate limits
 
     # 4. print the edition — ONLY stories Claude has read AND judged to be your area
     edition = []
