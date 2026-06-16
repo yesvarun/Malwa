@@ -16,10 +16,10 @@ from bs4 import BeautifulSoup
 
 # ───────── config ─────────
 CEREBRAS_KEY   = os.environ.get("CEREBRAS_API_KEY", "").strip()
-CEREBRAS_MODEL = "llama-3.3-70b"     # current free model; 1M tokens/day, 30 req/min
+CEREBRAS_MODEL = "llama3.1-8b"       # baseline free model available to all accounts
 HOURS_BACK     = 12
 MAX_NEW_PER_RUN= 120         # Cerebras 1M tokens/day is plenty; pacing keeps us under 30 req/min
-BATCH          = 5           # articles per call (Llama 3.3 70B has ample context)
+BATCH          = 4           # 4 articles/call fits the 8b model's context
 OUT            = "news.json"
 CACHE          = "claude_cache.json"
 CEREBRAS_ERR   = []   # collect real failure reasons
