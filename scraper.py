@@ -24,6 +24,8 @@ MAX_NEW_PER_RUN= 200         # two AIs share the load → higher throughput per 
 BATCH          = 5           # articles per call
 OUT            = "news.json"
 CACHE          = "claude_cache.json"
+GEMINI_ERR     = []   # collect real Gemini failure reasons
+GROQ_ERR       = []   # collect real Groq failure reasons
 UA = {"User-Agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 "
                     "(KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36"}
 
@@ -34,6 +36,10 @@ def bing(q):
     return f"https://www.bing.com/news/search?q={quote(q)}&format=rss"
 
 FEEDS = [
+    # ★ DEDICATED CATEGORY RSS FEEDS — the paper's own Bathinda section, not keyword search
+    ("https://publish.tribuneindia.com/city/bathinda/feed/", "en", "bathinda"),
+    ("https://publish.punjabitribuneonline.com/city/bathinda/feed/", "pa", "bathinda"),
+    ("https://publish.dainiktribuneonline.com/city/bathinda/feed/", "hi", "bathinda"),
     # ਪੰਜਾਬੀ — only your area
     (gn('"ਰਾਮਪੁਰਾ ਫੂਲ"', "pa", "pa"), "pa", "rampura"),
     (gn("ਬਠਿੰਡਾ ਪੰਜਾਬ", "pa", "pa"), "pa", "bathinda"),
@@ -406,6 +412,7 @@ def _parse(text):
 
 def _call_gemini(prompt):
     import time as _t
+    last = ""
     for attempt in range(3):
         try:
             r = requests.post(
@@ -416,15 +423,18 @@ def _call_gemini(prompt):
                 timeout=240)
             if r.status_code == 200:
                 return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+            last = f"G{r.status_code}:{r.text[:120]}"
             if r.status_code in (503, 429, 500):
                 _t.sleep(6 * (attempt + 1)); continue
-            return None
-        except Exception:
-            _t.sleep(4)
+            GEMINI_ERR.append(last); return None
+        except Exception as e:
+            last = f"Gexc:{str(e)[:100]}"; _t.sleep(4)
+    GEMINI_ERR.append(last)
     return None
 
 def _call_groq(prompt):
     import time as _t
+    last = ""
     for attempt in range(3):
         try:
             r = requests.post(
@@ -435,11 +445,13 @@ def _call_groq(prompt):
                 timeout=240)
             if r.status_code == 200:
                 return r.json()["choices"][0]["message"]["content"]
+            last = f"Q{r.status_code}:{r.text[:120]}"
             if r.status_code in (503, 429, 500):
                 _t.sleep(6 * (attempt + 1)); continue
-            return None
-        except Exception:
-            _t.sleep(4)
+            GROQ_ERR.append(last); return None
+        except Exception as e:
+            last = f"Qexc:{str(e)[:100]}"; _t.sleep(4)
+    GROQ_ERR.append(last)
     return None
 
 def claude_read(batch, provider="gemini"):
@@ -665,6 +677,15 @@ def main():
     cache = pruned
     json.dump(cache, open(CACHE, "w", encoding="utf-8"), ensure_ascii=False)
     print(f"🗞️  printed {len(edition)} stories → {OUT} · cache now {len(cache)} (≤12h)")
+    # show the REAL reasons providers failed (deduplicated) so we can fix the right thing
+    if GEMINI_ERR:
+        uniq = {}
+        for e in GEMINI_ERR: uniq[e[:60]] = uniq.get(e[:60],0)+1
+        print("  GEMINI errors:", "; ".join(f"{k} (x{v})" for k,v in uniq.items()))
+    if GROQ_ERR:
+        uniq = {}
+        for e in GROQ_ERR: uniq[e[:60]] = uniq.get(e[:60],0)+1
+        print("  GROQ errors:", "; ".join(f"{k} (x{v})" for k,v in uniq.items()))
 
 if __name__ == "__main__":
     main()
