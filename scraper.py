@@ -15,10 +15,12 @@ import requests
 from bs4 import BeautifulSoup
 
 # ───────── config ─────────
-KEY            = os.environ["GEMINI_API_KEY"].strip()
-MODEL          = "gemini-2.5-flash"   # current free model (1.5-flash retired); good Punjabi/Hindi
+GEMINI_KEY     = os.environ.get("GEMINI_API_KEY", "").strip()
+GROQ_KEY       = os.environ.get("GROQ_API_KEY", "").strip()
+GEMINI_MODEL   = "gemini-2.5-flash"          # free; good Punjabi/Hindi
+GROQ_MODEL     = "llama-3.3-70b-versatile"   # free; fast, multilingual
 HOURS_BACK     = 12
-MAX_NEW_PER_RUN= 100         # reads/run; safe for Gemini free daily quota, backlog clears in ~3 runs
+MAX_NEW_PER_RUN= 200         # two AIs share the load → higher throughput per run
 BATCH          = 5           # articles per call
 OUT            = "news.json"
 CACHE          = "claude_cache.json"
@@ -354,12 +356,11 @@ def grab_article(item):
     return "\n".join(paras)[:4000], img_url, url, pub_iso
 
 # ───────── Claude: read & summarize ─────────
-def claude_read(batch):
-    """batch: list of dicts with title/text/lang. Returns list of {summary, region, lang}."""
+def _build_prompt(batch):
     numbered = "\n\n".join(
         f"### ARTICLE {i+1}\nTITLE: {a['title']}\nTEXT: {a['text'][:1800] or '(text unavailable — use title)'}"
         for i, a in enumerate(batch))
-    prompt = f"""You are the desk editor of a local newspaper in Rampura Phul, Bathinda district, Punjab.
+    return f"""You are the desk editor of a local newspaper in Rampura Phul, Bathinda district, Punjab.
 For EACH article below, return a JSON object with:
 - "i": article number
 - "summary": 50-80 words, factual, neutral, written in the SAME LANGUAGE as the article (Punjabi stays Punjabi in Gurmukhi, Hindi stays Hindi, English stays English). No opinions added, no hype. This is the short card preview.
@@ -379,22 +380,8 @@ For EACH article below, return a JSON object with:
 Respond with ONLY a JSON array, no markdown fences, no preamble.
 
 {numbered}"""
-    r = requests.post(
-        f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent?key={KEY}",
-        headers={"content-type": "application/json"},
-        json={
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"maxOutputTokens": 8000, "temperature": 0.2}
-        },
-        timeout=240)
-    if r.status_code != 200:
-        # show the REAL reason the API rejected us (key, model, quota, etc.)
-        raise RuntimeError(f"API {r.status_code}: {r.text[:300]}")
-    data = r.json()
-    try:
-        text = data["candidates"][0]["content"]["parts"][0]["text"]
-    except (KeyError, IndexError):
-        raise RuntimeError(f"Gemini empty/blocked: {str(data)[:300]}")
+
+def _parse(text):
     text = re.sub(r"```(json)?", "", text).strip()
     try:
         return json.loads(text)
@@ -416,6 +403,59 @@ Respond with ONLY a JSON array, no markdown fences, no preamble.
                         pass
                     start = None
         return objs
+
+def _call_gemini(prompt):
+    import time as _t
+    for attempt in range(3):
+        try:
+            r = requests.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_KEY}",
+                headers={"content-type": "application/json"},
+                json={"contents": [{"parts": [{"text": prompt}]}],
+                      "generationConfig": {"maxOutputTokens": 8000, "temperature": 0.2}},
+                timeout=240)
+            if r.status_code == 200:
+                return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+            if r.status_code in (503, 429, 500):
+                _t.sleep(6 * (attempt + 1)); continue
+            return None
+        except Exception:
+            _t.sleep(4)
+    return None
+
+def _call_groq(prompt):
+    import time as _t
+    for attempt in range(3):
+        try:
+            r = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {GROQ_KEY}", "content-type": "application/json"},
+                json={"model": GROQ_MODEL, "max_tokens": 8000, "temperature": 0.2,
+                      "messages": [{"role": "user", "content": prompt}]},
+                timeout=240)
+            if r.status_code == 200:
+                return r.json()["choices"][0]["message"]["content"]
+            if r.status_code in (503, 429, 500):
+                _t.sleep(6 * (attempt + 1)); continue
+            return None
+        except Exception:
+            _t.sleep(4)
+    return None
+
+def claude_read(batch, provider="gemini"):
+    """Read a batch with the assigned provider; if it fails, try the other one."""
+    prompt = _build_prompt(batch)
+    order = (["gemini", "groq"] if provider == "gemini" else ["groq", "gemini"])
+    for p in order:
+        if p == "gemini" and GEMINI_KEY:
+            text = _call_gemini(prompt)
+        elif p == "groq" and GROQ_KEY:
+            text = _call_groq(prompt)
+        else:
+            text = None
+        if text:
+            return _parse(text)
+    raise RuntimeError("both providers unavailable for this batch")
 
 # ───────── main ─────────
 def _load_json(path, default):
@@ -514,11 +554,31 @@ def main():
         list(tpool.map(enrich, fresh))
     fresh = [x for x in fresh if not x.get("drop")]
 
-    import time
+    # split into batches, alternate providers (Gemini/Groq), run them ALL in parallel
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    batches = []
     for i in range(0, len(fresh), BATCH):
-        chunk = fresh[i:i + BATCH]
+        provider = "gemini" if (i // BATCH) % 2 == 0 else "groq"
+        # if one key is missing, send everything to the available one
+        if not GROQ_KEY: provider = "gemini"
+        if not GEMINI_KEY: provider = "groq"
+        batches.append((i // BATCH + 1, fresh[i:i + BATCH], provider))
+
+    def run_batch(args):
+        num, chunk, provider = args
         try:
-            results = claude_read(chunk)
+            results = claude_read(chunk, provider)
+            return (num, provider, chunk, results, None)
+        except Exception as e:
+            return (num, provider, chunk, [], str(e))
+
+    # limited parallelism so we respect each provider's per-minute limits
+    with ThreadPoolExecutor(max_workers=6) as bpool:
+        for num, provider, chunk, results, err in bpool.map(run_batch, batches):
+            if err:
+                print(f"  ✗ batch {num} ({provider}): {err}")
+                continue
+            ok = 0
             for res in results:
                 idx = res.get("i")
                 if not isinstance(idx, int) or idx < 1 or idx > len(chunk):
@@ -536,10 +596,8 @@ def main():
                     "topic": (res.get("topic") or "").strip(),
                     "date": a["date"],
                 }
-            print(f"  read batch {i//BATCH + 1} ({len(results)} ok)")
-        except Exception as e:
-            print(f"  ✗ batch {i//BATCH + 1}: {e}")
-        time.sleep(4.5)   # stay under Gemini free tier 15 requests/min
+                ok += 1
+            print(f"  read batch {num} ({provider}, {ok} ok)")
 
     # 4. print the edition — ONLY stories Claude has read AND judged to be your area
     edition = []
