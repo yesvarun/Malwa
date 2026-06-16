@@ -566,6 +566,8 @@ def main():
 
     def run_batch(args):
         num, chunk, provider = args
+        import time as _t
+        _t.sleep((num % 3) * 1.5)   # small stagger so workers don't all fire at once
         try:
             results = claude_read(chunk, provider)
             return (num, provider, chunk, results, None)
@@ -573,7 +575,7 @@ def main():
             return (num, provider, chunk, [], str(e))
 
     # limited parallelism so we respect each provider's per-minute limits
-    with ThreadPoolExecutor(max_workers=6) as bpool:
+    with ThreadPoolExecutor(max_workers=3) as bpool:
         for num, provider, chunk, results, err in bpool.map(run_batch, batches):
             if err:
                 print(f"  ✗ batch {num} ({provider}): {err}")
