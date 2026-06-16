@@ -22,7 +22,6 @@ MAX_NEW_PER_RUN= 40          # cap Claude reads per run so it stays fast; backlo
 BATCH          = 5           # articles per Claude call (smaller = no truncation now we ask for digests)
 OUT            = "news.json"
 CACHE          = "claude_cache.json"
-EXTRAS         = "extras.json"   # stories Claude READ but judged out-of-area — "The Spike"
 UA = {"User-Agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 "
                     "(KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36"}
 
@@ -63,6 +62,26 @@ FEEDS = [
     # major Punjabi papers' Bathinda/Malwa coverage by site
     (gn("ਬਠਿੰਡਾ site:ptcnews.tv OR site:jagbani.punjabkesari.in", "pa", "pa"), "pa", "bathinda"),
     (gn("ਬਰਨਾਲਾ ਖ਼ਬਰਾਂ", "pa", "pa"), "pa", "nearby"),
+    # dedicated local-paper district pages — these carry the print-edition Malwa/Bathinda news
+    (gn('site:jagbani.punjabkesari.in/malwa/bhatinda-mansa', "pa", "pa"), "pa", "bathinda"),
+    (gn('site:jagbani.punjabkesari.in/malwa/sangrur-barnala', "pa", "pa"), "pa", "nearby"),
+    (gn('site:punjabijagran.com ਬਠਿੰਡਾ OR ਰਾਮਪੁਰਾ', "pa", "pa"), "pa", "bathinda"),
+    (gn('site:tribuneindia.com/news/city/bathinda OR "Rampura Phul"', "en-IN", "en"), "en", "bathinda"),
+    (gn('site:tribuneindia.com Bathinda OR "Rampura Phul" OR "Talwandi Sabo"', "en-IN", "en"), "en", "bathinda"),
+    (gn('site:ajitjalandhar.com ਬਠਿੰਡਾ OR ਰਾਮਪੁਰਾ', "pa", "pa"), "pa", "bathinda"),
+    (gn('site:babushahi.com OR site:rozanaspokesman.com ਬਠਿੰਡਾ', "pa", "pa"), "pa", "bathinda"),
+    # more dedicated local-paper pages (Punjabi Tribune, Sach Kahoon, Bhaskar, IE, TOI, Punjab Kesari)
+    (gn('site:punjabitribuneonline.com ਬਠਿੰਡਾ OR ਰਾਮਪੁਰਾ OR ਮੌੜ', "pa", "pa"), "pa", "bathinda"),
+    (gn('site:sachkahoonpunjabi.com ਬਠਿੰਡਾ OR ਰਾਮਪੁਰਾ', "pa", "pa"), "pa", "bathinda"),
+    (gn('site:sachkahoon.com बठिंडा OR रामपुरा', "hi", "hi"), "hi", "bathinda"),
+    (gn('site:bhaskar.com बठिंडा OR रामपुरा फूल OR तलवंडी साबो', "hi", "hi"), "hi", "bathinda"),
+    (gn('site:punjab.punjabkesari.in बठिंडा OR रामपुरा', "hi", "hi"), "hi", "bathinda"),
+    (gn('site:indianexpress.com Bathinda OR "Rampura Phul" OR "Talwandi Sabo"', "en-IN", "en"), "en", "bathinda"),
+    (gn('site:timesofindia.indiatimes.com Bathinda OR "Rampura Phul"', "en-IN", "en"), "en", "bathinda"),
+    (gn('site:tribuneindia.com Maur OR Goniana OR Nathana OR Bhucho', "en-IN", "en"), "en", "bathinda"),
+    # Rampura Phul specific — the heart of your area
+    (gn('"ਰਾਮਪੁਰਾ ਫੂਲ" OR "ਮੌੜ ਮੰਡੀ" OR "ਤਲਵੰਡੀ ਸਾਬੋ"', "pa", "pa"), "pa", "rampura"),
+    (gn('"रामपुरा फूल" OR "मौड़ मंडी" OR "तलवंडी साबो"', "hi", "hi"), "hi", "rampura"),
     # Chandigarh + Kasauli — ONLY mela/fair/festival news (you like these), not all city news
     (gn('चंडीगढ़ मेला OR कसौली मेला OR कसौली', "hi", "hi"), "hi", "chandigarh"),
     (gn('"Chandigarh" mela OR fair OR festival OR Kasauli', "en-IN", "en"), "en", "chandigarh"),
@@ -367,7 +386,9 @@ Respond with ONLY a JSON array, no markdown fences, no preamble.
         json={"model": MODEL, "max_tokens": 8000,
               "messages": [{"role": "user", "content": prompt}]},
         timeout=240)
-    r.raise_for_status()
+    if r.status_code != 200:
+        # show the REAL reason the API rejected us (key, model, request shape, etc.)
+        raise RuntimeError(f"API {r.status_code}: {r.text[:300]}")
     text = "".join(b.get("text", "") for b in r.json()["content"])
     text = re.sub(r"```(json)?", "", text).strip()
     try:
@@ -513,29 +534,28 @@ def main():
         except Exception as e:
             print(f"  ✗ batch {i//BATCH + 1}: {e}")
 
-    # 4. print the edition — ONLY stories Claude has read AND judged to be your area.
-    #    Stories Claude read but judged OUT-OF-AREA go to "The Spike" (extras.json) instead
-    #    of being thrown away — same full fields, so the app can show them on demand.
+    # 4. print the edition — ONLY stories Claude has read AND judged to be your area
     edition = []
-    extras  = []
     for x in pool.values():
         c = cache.get(md5(x["title"]), {})
         if x.get("drop") or c.get("fresh") is False:
             continue   # old story — never print
         if not c.get("summary"):
-            continue   # Claude hasn't read it yet → don't judge it until it's read
+            continue   # Claude hasn't read it yet → don't print until it's judged
         reg = c.get("region", x["region"])
         # Trust ONLY Claude's judgment of where the events happen (it read the full story).
         # No word-matching on titles here — that is exactly what caused "Bathinda in headline"
         # stories about other places to leak. Claude's region is the sole decider.
-        row = {
+        if reg not in ("rampura", "bathinda", "nearby", "chandigarh"):
+            continue   # other / opinion / unread-fallback / anything else → drop
+        edition.append({
             "title": x["title"],
             "link": x["link"],
             "summary": c.get("summary") or x.get("snippet") or x.get("summary", ""),
             "digest": c.get("digest", ""),
             "image": x.get("image", ""),
             "lang": c.get("lang", x["lang"]),
-            "region": reg,
+            "region": c.get("region", x["region"]),
             "matched": x.get("matched",""),
             "place": c.get("place","") or x.get("matched",""),
             "topic": c.get("topic",""),
@@ -543,11 +563,7 @@ def main():
             "date": x["date"],
             "source": x["source"],
             "id": x["id"],
-        }
-        if reg not in ("rampura", "bathinda", "nearby", "chandigarh"):
-            extras.append(row)   # out-of-area → spiked (didn't make print), kept for the app
-            continue
-        edition.append(row)
+        })
     edition.sort(key=lambda e: (-REGION_W.get(e["region"], 0), e["date"]), reverse=False)
     edition.sort(key=lambda e: e["date"], reverse=True)
     edition.sort(key=lambda e: -REGION_W.get(e["region"], 0))
@@ -565,11 +581,6 @@ def main():
 
     json.dump(edition, open(OUT, "w", encoding="utf-8"),
               ensure_ascii=False, indent=1)
-    # The Spike — out-of-area stories Claude read but didn't print (newest first, capped)
-    extras.sort(key=lambda e: e["date"], reverse=True)
-    extras = extras[:60]
-    json.dump(extras, open(EXTRAS, "w", encoding="utf-8"),
-              ensure_ascii=False, indent=1)
     # CACHE holds ONLY last-12-hour stories — drop anything older every run
     pruned = {}
     for k, v in cache.items():
@@ -586,7 +597,7 @@ def main():
             continue
     cache = pruned
     json.dump(cache, open(CACHE, "w", encoding="utf-8"), ensure_ascii=False)
-    print(f"🗞️  printed {len(edition)} → {OUT} · spiked {len(extras)} → {EXTRAS} · cache now {len(cache)} (≤12h)")
+    print(f"🗞️  printed {len(edition)} stories → {OUT} · cache now {len(cache)} (≤12h)")
 
 if __name__ == "__main__":
     main()
