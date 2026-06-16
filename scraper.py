@@ -16,9 +16,9 @@ from bs4 import BeautifulSoup
 
 # ───────── config ─────────
 KEY            = os.environ["GEMINI_API_KEY"].strip()
-MODEL          = "gemini-1.5-flash"   # free tier, good Punjabi/Hindi, reads full articles
+MODEL          = "gemini-2.5-flash"   # current free model (1.5-flash retired); good Punjabi/Hindi
 HOURS_BACK     = 12
-MAX_NEW_PER_RUN= 320         # high cap: one run clears the whole backlog (GitHub cron is unreliable)
+MAX_NEW_PER_RUN= 100         # reads/run; safe for Gemini free daily quota, backlog clears in ~3 runs
 BATCH          = 5           # articles per call
 OUT            = "news.json"
 CACHE          = "claude_cache.json"
