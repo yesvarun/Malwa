@@ -15,11 +15,11 @@ import requests
 from bs4 import BeautifulSoup
 
 # ───────── config ─────────
-KEY            = os.environ["ANTHROPIC_API_KEY"].strip()
-MODEL          = "claude-haiku-4-5-20251001"   # cheapest, plenty for summaries
+KEY            = os.environ["GEMINI_API_KEY"].strip()
+MODEL          = "gemini-1.5-flash"   # free tier, good Punjabi/Hindi, reads full articles
 HOURS_BACK     = 12
-MAX_NEW_PER_RUN= 40          # cap Claude reads per run so it stays fast; backlog fills over a few runs
-BATCH          = 5           # articles per Claude call (smaller = no truncation now we ask for digests)
+MAX_NEW_PER_RUN= 320         # high cap: one run clears the whole backlog (GitHub cron is unreliable)
+BATCH          = 5           # articles per call
 OUT            = "news.json"
 CACHE          = "claude_cache.json"
 UA = {"User-Agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 "
@@ -380,16 +380,21 @@ Respond with ONLY a JSON array, no markdown fences, no preamble.
 
 {numbered}"""
     r = requests.post(
-        "https://api.anthropic.com/v1/messages",
-        headers={"x-api-key": KEY, "anthropic-version": "2023-06-01",
-                 "content-type": "application/json"},
-        json={"model": MODEL, "max_tokens": 8000,
-              "messages": [{"role": "user", "content": prompt}]},
+        f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent?key={KEY}",
+        headers={"content-type": "application/json"},
+        json={
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"maxOutputTokens": 8000, "temperature": 0.2}
+        },
         timeout=240)
     if r.status_code != 200:
-        # show the REAL reason the API rejected us (key, model, request shape, etc.)
+        # show the REAL reason the API rejected us (key, model, quota, etc.)
         raise RuntimeError(f"API {r.status_code}: {r.text[:300]}")
-    text = "".join(b.get("text", "") for b in r.json()["content"])
+    data = r.json()
+    try:
+        text = data["candidates"][0]["content"]["parts"][0]["text"]
+    except (KeyError, IndexError):
+        raise RuntimeError(f"Gemini empty/blocked: {str(data)[:300]}")
     text = re.sub(r"```(json)?", "", text).strip()
     try:
         return json.loads(text)
@@ -509,6 +514,7 @@ def main():
         list(tpool.map(enrich, fresh))
     fresh = [x for x in fresh if not x.get("drop")]
 
+    import time
     for i in range(0, len(fresh), BATCH):
         chunk = fresh[i:i + BATCH]
         try:
@@ -530,9 +536,10 @@ def main():
                     "topic": (res.get("topic") or "").strip(),
                     "date": a["date"],
                 }
-            print(f"  Claude read batch {i//BATCH + 1} ({len(results)} ok)")
+            print(f"  read batch {i//BATCH + 1} ({len(results)} ok)")
         except Exception as e:
             print(f"  ✗ batch {i//BATCH + 1}: {e}")
+        time.sleep(4.5)   # stay under Gemini free tier 15 requests/min
 
     # 4. print the edition — ONLY stories Claude has read AND judged to be your area
     edition = []
