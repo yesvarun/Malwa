@@ -21,14 +21,14 @@ jobs:
 
       - name: Run the press
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python scraper.py
 
       - name: Commit the edition
         run: |
           git config user.name "press-bot"
           git config user.email "press-bot@users.noreply.github.com"
-          git add news.json claude_cache.json extras.json
+          git add news.json claude_cache.json
           git commit -m "🗞️ press run $(date -u '+%d %b %H:%M')" || { echo "nothing new"; exit 0; }
           for i in 1 2 3; do
             git pull --rebase origin main && git push origin main && break || sleep 8
