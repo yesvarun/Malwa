@@ -15,14 +15,14 @@ import requests
 from bs4 import BeautifulSoup
 
 # ───────── config ─────────
-CEREBRAS_KEY   = os.environ.get("CEREBRAS_API_KEY", "").strip()
-CEREBRAS_MODEL = "llama3.1-8b"       # baseline free model available to all accounts
+GEMINI_KEY     = os.environ.get("GEMINI_API_KEY", "").strip()
+GEMINI_MODEL   = "gemini-2.5-flash"   # free; good Punjabi/Hindi
 HOURS_BACK     = 12
-MAX_NEW_PER_RUN= 120         # Cerebras 1M tokens/day is plenty; pacing keeps us under 30 req/min
-BATCH          = 4           # 4 articles/call fits the 8b model's context
+MAX_NEW_PER_RUN= 90          # paced under Gemini's per-minute limit; backlog clears over a few runs
+BATCH          = 5           # articles per call
 OUT            = "news.json"
 CACHE          = "claude_cache.json"
-CEREBRAS_ERR   = []   # collect real failure reasons
+GEMINI_ERR     = []   # collect real failure reasons
 UA = {"User-Agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 "
                     "(KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36"}
 
@@ -412,35 +412,35 @@ def _parse(text):
                     start = None
         return objs
 
-def _call_cerebras(prompt):
+def _call_gemini(prompt):
     import time as _t
     last = ""
-    for attempt in range(3):
+    for attempt in range(4):   # extra retries since free tier queues when busy
         try:
             r = requests.post(
-                "https://api.cerebras.ai/v1/chat/completions",
-                headers={"Authorization": f"Bearer {CEREBRAS_KEY}", "content-type": "application/json"},
-                json={"model": CEREBRAS_MODEL, "max_tokens": 4000, "temperature": 0.2,
-                      "messages": [{"role": "user", "content": prompt}]},
+                f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_KEY}",
+                headers={"content-type": "application/json"},
+                json={"contents": [{"parts": [{"text": prompt}]}],
+                      "generationConfig": {"maxOutputTokens": 8000, "temperature": 0.2}},
                 timeout=240)
             if r.status_code == 200:
-                return r.json()["choices"][0]["message"]["content"]
-            last = f"C{r.status_code}:{r.text[:120]}"
+                return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+            last = f"G{r.status_code}:{r.text[:120]}"
             if r.status_code in (503, 429, 500):
-                _t.sleep(5 * (attempt + 1)); continue   # busy / rate-limited → wait & retry
-            CEREBRAS_ERR.append(last); return None
+                _t.sleep(8 * (attempt + 1)); continue   # busy queue → wait longer & retry
+            GEMINI_ERR.append(last); return None
         except Exception as e:
-            last = f"Cexc:{str(e)[:100]}"; _t.sleep(4)
-    CEREBRAS_ERR.append(last)
+            last = f"Gexc:{str(e)[:100]}"; _t.sleep(5)
+    GEMINI_ERR.append(last)
     return None
 
-def claude_read(batch, provider="cerebras"):
-    """Read a batch with Cerebras."""
+def claude_read(batch, provider="gemini"):
+    """Read a batch with Gemini."""
     prompt = _build_prompt(batch)
-    text = _call_cerebras(prompt) if CEREBRAS_KEY else None
+    text = _call_gemini(prompt) if GEMINI_KEY else None
     if text:
         return _parse(text)
-    raise RuntimeError("Cerebras unavailable for this batch")
+    raise RuntimeError("Gemini unavailable for this batch")
 
 # ───────── main ─────────
 def _load_json(path, default):
@@ -542,7 +542,7 @@ def main():
     # split into batches — all read by Cerebras, paced under its 30 req/min limit
     batches = []
     for i in range(0, len(fresh), BATCH):
-        batches.append((i // BATCH + 1, fresh[i:i + BATCH], "cerebras"))
+        batches.append((i // BATCH + 1, fresh[i:i + BATCH], "gemini"))
 
     # Read sequentially but ALTERNATE providers, with a delay that respects per-minute limits.
     # Gemini and Groq each get a request only every ~8s → well under their per-minute caps.
@@ -576,7 +576,7 @@ def main():
                 }
                 ok += 1
             print(f"  read batch {num} ({provider}, {ok} ok)")
-        _t.sleep(2.2)   # ~27 requests/min — safely under Cerebras 30 req/min limit
+        _t.sleep(5)   # ~12 requests/min — under Gemini free tier ~15/min limit
 
     # 4. print the edition — ONLY stories Claude has read AND judged to be your area
     edition = []
@@ -643,10 +643,10 @@ def main():
     json.dump(cache, open(CACHE, "w", encoding="utf-8"), ensure_ascii=False)
     print(f"🗞️  printed {len(edition)} stories → {OUT} · cache now {len(cache)} (≤12h)")
     # show the REAL reasons Cerebras failed (deduplicated) so we can fix the right thing
-    if CEREBRAS_ERR:
+    if GEMINI_ERR:
         uniq = {}
-        for e in CEREBRAS_ERR: uniq[e[:60]] = uniq.get(e[:60],0)+1
-        print("  CEREBRAS errors:", "; ".join(f"{k} (x{v})" for k,v in uniq.items()))
+        for e in GEMINI_ERR: uniq[e[:60]] = uniq.get(e[:60],0)+1
+        print("  GEMINI errors:", "; ".join(f"{k} (x{v})" for k,v in uniq.items()))
 
 if __name__ == "__main__":
     main()
