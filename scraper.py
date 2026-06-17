@@ -32,6 +32,15 @@ def gn(q, hl, ceid):
 def bing(q):
     return f"https://www.bing.com/news/search?q={quote(q)}&format=rss"
 
+# dedicated Bathinda-SECTION feeds — the paper's own desk already sorted these as local,
+# so they're trusted without any word-matching or AI.
+TRUSTED_SECTION = ("publish.tribuneindia", "publish.punjabitribuneonline",
+                   "publish.dainiktribuneonline")
+def is_trusted_feed(url):
+    return any(t in url for t in TRUSTED_SECTION)
+REGION_LABEL_PLACE = {"rampura": "Rampura Phul", "bathinda": "Bathinda",
+                      "nearby": "Barnala", "chandigarh": "Chandigarh"}
+
 FEEDS = [
     # ★ DEDICATED CATEGORY RSS FEEDS — the paper's own Bathinda section, not keyword search
     ("https://publish.tribuneindia.com/city/bathinda/feed/", "en", "bathinda"),
@@ -456,7 +465,6 @@ def _load_json(path, default):
         return default
 
 def main():
-    cache = _load_json(CACHE, {})
     old_news = _load_json(OUT, [])
 
     # 1. collect from every press
@@ -465,6 +473,7 @@ def main():
     blocked_sample = []
     for url, lang, region in FEEDS:
         is_bing = "bing.com" in url   # Bing fakes dates on old stories → enrich-only
+        trusted = is_trusted_feed(url)   # dedicated Bathinda-SECTION feed → paper already sorted as local
         try:
             parsed = parse_feed(fetch(url).text, lang, region, enrich=is_bing)
             for it in parsed:
@@ -477,19 +486,25 @@ def main():
                         ex["snippet"] = it["snippet"]
                     if REGION_W.get(it["region"],0) > REGION_W.get(ex["region"],0):
                         ex["region"] = it["region"]
+                    if trusted:
+                        ex["trusted"] = True
                 elif not it["enrich"]:
-                    # LOOSE pre-filter only: drop obvious far-off junk to save Claude reads.
-                    # The REAL area decision happens after Claude reads the full story body.
-                    if not obviously_not_mine(it):
-                        det = detect_region(it, it["region"])
-                        if det: it["region"] = det
-                        it["matched"] = matched_keyword(it)
+                    if trusted:
+                        # paper's own Bathinda section → keep as-is, no word-matching needed
+                        it["trusted"] = True
+                        it["matched"] = ""
                         pool[it["id"]] = it; stats["kept"] += 1
+                    elif not obviously_not_mine(it):
+                        # keyword feed → keep only if title/snippet names a real local town
+                        det = detect_region(it, it["region"])
+                        if det:
+                            it["region"] = det
+                            it["matched"] = matched_keyword(it)
+                            pool[it["id"]] = it; stats["kept"] += 1
+                        else:
+                            stats["geo_blocked"] += 1
                     else:
                         stats["geo_blocked"] += 1
-                        if not it.get("snippet"): stats["blocked_empty_snip"] += 1
-                        if len(blocked_sample) < 12:
-                            blocked_sample.append(("∅" if not it.get("snippet") else "·")+" "+it["title"][:70])
             print(f"✓ {lang}/{region} ({len(parsed)})")
         except Exception as e:
             print(f"✗ {lang}/{region}: {e}")
@@ -505,14 +520,13 @@ def main():
         except Exception:
             pass
 
-    # 2. which stories has Claude not read yet? prioritize local + newest
-    unread = [x for x in pool.values() if md5(x["title"]) not in cache]
-    unread.sort(key=lambda x: x["date"], reverse=True)
-    unread.sort(key=lambda x: -REGION_W.get(x["region"], 0))
-    fresh = unread[:MAX_NEW_PER_RUN]
-    print(f"{len(pool)} in stock · {len(fresh)} new for Claude to read")
+    # 2. fetch article image + first paragraphs for a preview (NO AI). Parallel = fast.
+    stories = list(pool.values())
+    stories.sort(key=lambda x: x["date"], reverse=True)
+    stories.sort(key=lambda x: -REGION_W.get(x["region"], 0))
+    stories = stories[:MAX_NEW_PER_RUN]
+    print(f"{len(pool)} in stock · enriching {len(stories)} for the edition")
 
-    # 3. fetch article text + image IN PARALLEL (was one-by-one — the slow part)
     from concurrent.futures import ThreadPoolExecutor
     def enrich(x):
         try:
@@ -534,76 +548,43 @@ def main():
                 except Exception:
                     pass
         except Exception:
-            x["text"] = x.get("snippet","")   # fetch failed → fall back to snippet
+            x["text"] = x.get("snippet","")
     with ThreadPoolExecutor(max_workers=10) as tpool:
-        list(tpool.map(enrich, fresh))
-    fresh = [x for x in fresh if not x.get("drop")]
+        list(tpool.map(enrich, stories))
+    stories = [x for x in stories if not x.get("drop")]
 
-    # split into batches — all read by Cerebras, paced under its 30 req/min limit
-    batches = []
-    for i in range(0, len(fresh), BATCH):
-        batches.append((i // BATCH + 1, fresh[i:i + BATCH], "gemini"))
+    # 3. build a preview summary from the article (no AI): first 1-2 clean paragraphs,
+    #    falling back to the RSS snippet. Section feeds usually carry a good description.
+    def make_preview(x):
+        body = (x.get("text") or "").strip()
+        if body:
+            paras = [p.strip() for p in body.split("\n") if len(p.strip()) > 40]
+            if paras:
+                preview = " ".join(paras[:2])
+                return preview[:400].rsplit(" ", 1)[0] + ("…" if len(preview) > 400 else "")
+        return (x.get("snippet") or "").strip()
 
-    # Read sequentially but ALTERNATE providers, with a delay that respects per-minute limits.
-    # Gemini and Groq each get a request only every ~8s → well under their per-minute caps.
-    import time as _t
-    for idx, (num, chunk, provider) in enumerate(batches):
-        try:
-            results = claude_read(chunk, provider)
-            err = None
-        except Exception as e:
-            results, err = [], str(e)
-        if err:
-            print(f"  ✗ batch {num} ({provider}): {err}")
-        else:
-            ok = 0
-            for res in results:
-                ridx = res.get("i")
-                if not isinstance(ridx, int) or ridx < 1 or ridx > len(chunk):
-                    continue
-                a = chunk[ridx - 1]
-                if not res.get("summary"):
-                    continue
-                cache[md5(a["title"])] = {
-                    "summary": res.get("summary", ""),
-                    "digest": res.get("digest", ""),
-                    "region": res.get("region", a["region"]),
-                    "lang": res.get("lang", a["lang"]),
-                    "fresh": res.get("fresh", True),
-                    "place": (res.get("place") or "").strip(),
-                    "topic": (res.get("topic") or "").strip(),
-                    "date": a["date"],
-                }
-                ok += 1
-            print(f"  read batch {num} ({provider}, {ok} ok)")
-        _t.sleep(5)   # ~12 requests/min — under Gemini free tier ~15/min limit
-
-    # 4. print the edition — ONLY stories Claude has read AND judged to be your area
+    # 4. print the edition — every kept story IS local (section-trusted or town-matched). No AI gate.
     edition = []
-    for x in pool.values():
-        c = cache.get(md5(x["title"]), {})
-        if x.get("drop") or c.get("fresh") is False:
-            continue   # old story — never print
-        if not c.get("summary"):
-            continue   # Claude hasn't read it yet → don't print until it's judged
-        reg = c.get("region", x["region"])
-        # Trust ONLY Claude's judgment of where the events happen (it read the full story).
-        # No word-matching on titles here — that is exactly what caused "Bathinda in headline"
-        # stories about other places to leak. Claude's region is the sole decider.
+    for x in stories:
+        if x.get("drop"):
+            continue
+        reg = x["region"]
         if reg not in ("rampura", "bathinda", "nearby", "chandigarh"):
-            continue   # other / opinion / unread-fallback / anything else → drop
+            continue
         edition.append({
             "title": x["title"],
             "link": x["link"],
-            "summary": c.get("summary") or x.get("snippet") or x.get("summary", ""),
-            "digest": c.get("digest", ""),
+            "summary": make_preview(x) or x["title"],
+            "digest": "",
             "image": x.get("image", ""),
-            "lang": c.get("lang", x["lang"]),
-            "region": c.get("region", x["region"]),
+            "lang": x["lang"],
+            "region": reg,
             "matched": x.get("matched",""),
-            "place": c.get("place","") or x.get("matched",""),
-            "topic": c.get("topic",""),
-            "read": bool(c.get("summary")),   # true = Claude read the body, region is real
+            "place": x.get("matched","") or REGION_LABEL_PLACE.get(reg, ""),
+            "topic": "",
+            "read": True,            # source-verified local (newspaper section or named town)
+            "trusted": bool(x.get("trusted")),
             "date": x["date"],
             "source": x["source"],
             "id": x["id"],
@@ -625,28 +606,7 @@ def main():
 
     json.dump(edition, open(OUT, "w", encoding="utf-8"),
               ensure_ascii=False, indent=1)
-    # CACHE holds ONLY last-12-hour stories — drop anything older every run
-    pruned = {}
-    for k, v in cache.items():
-        d = v.get("date")
-        if not d:
-            continue                      # no date stamp → drop (old format)
-        try:
-            dt = datetime.fromisoformat(d)
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            if dt >= cutoff:               # cutoff = now - 12h
-                pruned[k] = v
-        except Exception:
-            continue
-    cache = pruned
-    json.dump(cache, open(CACHE, "w", encoding="utf-8"), ensure_ascii=False)
-    print(f"🗞️  printed {len(edition)} stories → {OUT} · cache now {len(cache)} (≤12h)")
-    # show the REAL reasons Cerebras failed (deduplicated) so we can fix the right thing
-    if GEMINI_ERR:
-        uniq = {}
-        for e in GEMINI_ERR: uniq[e[:60]] = uniq.get(e[:60],0)+1
-        print("  GEMINI errors:", "; ".join(f"{k} (x{v})" for k,v in uniq.items()))
+    print(f"🗞️  printed {len(edition)} local stories → {OUT}")
 
 if __name__ == "__main__":
     main()
