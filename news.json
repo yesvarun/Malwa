@@ -17,6 +17,23 @@
   "id": "supreme court permits removal of shivaji maharaj statue in goa"
  },
  {
+  "title": "Ramesh Maharaj, SC",
+  "link": "https://news.google.com/rss/articles/CBMif0FVX3lxTE5WOXpFM2RUSU9IVzFKaE1mNWJtRGhNemlZTm5ySkU4ZkJrQlVucnI3SHBMbi1IRFdCWTJVN2cwSHdPa3pwZFNXSWtyamEtenZYZllmUmx3QzNxZUlOdkhkcGVkaEMyOGpGM2pIelRzeWlJSEs1bXZKajd5eVZiLUE?oc=5",
+  "summary": "Ramesh Maharaj, SC",
+  "digest": "",
+  "image": "https://lh3.googleusercontent.com/J6_coFbogxhRI9iM864NL_liGXvsQp2AupsKei7z0cNNfDvGUmWUy20nuUhkREQyrpY4bEeIBuc=s0-w300-rw",
+  "lang": "en",
+  "region": "rampura",
+  "matched": "maharaj",
+  "place": "maharaj",
+  "topic": "",
+  "read": true,
+  "trusted": false,
+  "date": "2026-08-04T18:21:33+00:00",
+  "source": "Trinidad Guardian",
+  "id": "ramesh maharaj sc"
+ },
+ {
   "title": "Mohammed Shami comes out in support of Virat Kohli for visiting Premanand Maharaj in Vrindavan",
   "link": "https://news.google.com/rss/articles/CBMiygFBVV95cUxNRUo2UnlKQzRNOVVzNHhJLTNza0VRN253ZDFkZmpNT2VOS0FQZnEtZWpTWmZUNk9TckdDaU9iQTY5T1BYX3JTT19kWmo5Nm11d2JhMjFMdGVBWHpUMGw0cUROcnlNZ1FBSFEwVWhJbEFfVm5TX2FGbFE3V1VFLXVrTlF1YlJKUVlVemwwNjk1VmxZTTRmRHl3bURUR29lVXY3cXBOM3pmY0xQak9TZ1poLTlGdWd3SW1kbTJVV3g4Mm5nbHRScm9ndzh30gHPAUFVX3lxTE1IQndkYlktSVlpZ0V2TVA5cEJpc2lteUoxY2tmWEdrTld4R3ZfZzI2cy1DMHBfRmNEZ3NsTDUyNUdNYWJOUkxIb05KSjJUbTU4SzhmZkZGM3ZRRkhjZVJ5ckU1d0NDT1JJcUpjWFdzWVVDYWM3UXdybGlUeTVKdk1UbkxOemVPTU41R2R3NWpCU2tObHNPaG9VRjhKSG4wMGFJY3d4Z0pPQ0lVX055U3I3dXQ2VU15UTBaVVNIU0NLdUhxQXdKNjhZcE42anhtQQ?oc=5",
   "summary": "Mohammed Shami comes out in support of Virat Kohli for visiting Premanand Maharaj in Vrindavan",
@@ -66,23 +83,6 @@
   "date": "2026-08-04T15:57:14+00:00",
   "source": "News18",
   "id": "mohammed shami defends virat kohlis visits to premanand maharaj "
- },
- {
-  "title": "Ramesh Maharaj, SC",
-  "link": "https://news.google.com/rss/articles/CBMif0FVX3lxTE5WOXpFM2RUSU9IVzFKaE1mNWJtRGhNemlZTm5ySkU4ZkJrQlVucnI3SHBMbi1IRFdCWTJVN2cwSHdPa3pwZFNXSWtyamEtenZYZllmUmx3QzNxZUlOdkhkcGVkaEMyOGpGM2pIelRzeWlJSEs1bXZKajd5eVZiLUE?oc=5",
-  "summary": "Ramesh Maharaj, SC",
-  "digest": "",
-  "image": "https://lh3.googleusercontent.com/J6_coFbogxhRI9iM864NL_liGXvsQp2AupsKei7z0cNNfDvGUmWUy20nuUhkREQyrpY4bEeIBuc=s0-w300-rw",
-  "lang": "en",
-  "region": "rampura",
-  "matched": "maharaj",
-  "place": "maharaj",
-  "topic": "",
-  "read": true,
-  "trusted": false,
-  "date": "2026-08-04T15:19:06+00:00",
-  "source": "Trinidad Guardian",
-  "id": "ramesh maharaj sc"
  },
  {
   "title": "Baggage of Irish MBBS student stolen at Chhatrapati Shivaji Maharaj International Airport, probe ongoing",
@@ -149,7 +149,7 @@
   "read": true,
   "trusted": false,
   "date": "2026-08-04T11:12:00+00:00",
-  "source": "jagran.com",
+  "source": "Jagran",
   "id": "बठिंडा में जमीन पर कब्जे और नाबालिग से मारपीट का आरोप aap सरपंच "
  },
  {
@@ -302,7 +302,7 @@
   "read": true,
   "trusted": false,
   "date": "2026-08-04T12:59:00+00:00",
-  "source": "jagran.com",
+  "source": "Jagran",
   "id": "बठिंडा को नए रेलवे ओवरब्रिज की सौगात ट्रैफिक जाम से मिलेगी मुक्त"
  },
  {
@@ -353,7 +353,7 @@
   "read": true,
   "trusted": false,
   "date": "2026-08-04T11:18:00+00:00",
-  "source": "jagran.com",
+  "source": "Jagran",
   "id": "बठिंडा में 11 दिन बाद सफाई कर्मचारियों की हड़ताल खत्म बारिश ने ब"
  },
  {
@@ -372,40 +372,6 @@
   "date": "2026-08-04T10:07:46+00:00",
   "source": "Dainik Bhaskar",
   "id": "जत्थेदार गड़गज ने स्पीकर संधवां के बयान पर जताई आपत्ति संगत शब्द "
- },
- {
-  "title": "पंजाब में LADC के विरोध में वकीलों का पैदल मार्च: तीन सप्ताह से ठप है कामकाज, बठिंडा में DC को सौंपा ज्ञापन",
-  "link": "https://news.google.com/rss/articles/CBMiwwFBVV95cUxNc05HUGptSzd3WXp3VUxrSm1pc0d5MzVkVmZSSGpQX2RXNTlIUFhGZnJDOXM5ZEh5Q1pHNUZPdl8wTHhNS3JlREo3LUd4US1nbUtOZl9PaUpwX2xIQm1wSWk2cTY4eWt5djVIN2J6Q0w0RW5HTUthbjk4RU5USjFSRGJzVmdwZkZfckJ5Rk9WSTJLdXpFcGlDUHJzRm9fNmszbWZpTnIxenNWQVFkdHBjV3Zubi1JTC1jQjczYUFabWN4dHfSAcgBQVVfeXFMUHhMUnN1Y1RhR1JCbXJpdGhOVFBiRWlvc1l5WHAySTJiWmVsWkxHSGJMVFN5NGNORE9YRWNobERoYXlyZjczanphdlI0U3lnUTFaanBpb0J4NXdSQVlnSDQxWDFDbU1IbEJBVFEzM3RxdzBNRlgtazBockVLTDlNOTJSa1M0YUFRUTlOOENiRnlaTjlwbWlaTjZFMTF5S0F6Zk53TWdMaGxOUFNYY1NrTWl1WThBS2htNmh6RVF3Sk9wNlE3VF9QZEg?oc=5",
-  "summary": "पंजाब में LADC के विरोध में वकीलों का पैदल मार्च: तीन सप्ताह से ठप है कामकाज, बठिंडा में DC को सौंपा ज्ञापन",
-  "digest": "",
-  "image": "https://lh3.googleusercontent.com/J6_coFbogxhRI9iM864NL_liGXvsQp2AupsKei7z0cNNfDvGUmWUy20nuUhkREQyrpY4bEeIBuc=s0-w300-rw",
-  "lang": "hi",
-  "region": "bathinda",
-  "matched": "बठिंडा",
-  "place": "बठिंडा",
-  "topic": "",
-  "read": true,
-  "trusted": false,
-  "date": "2026-08-04T09:29:12+00:00",
-  "source": "Dainik Bhaskar",
-  "id": "पंजाब में ladc के विरोध में वकीलों का पैदल मार्च तीन सप्ताह से ठ"
- },
- {
-  "title": "बठिंडा, पंजाब में बिक्री के लिए पुराना आयशर 485 ट्रैक्टर, 2023 मॉडल ( टीजेएन253836)",
-  "link": "https://news.google.com/rss/articles/CBMihwFBVV95cUxQRmh1RXhteHRwRW5kY2M1aC1QbXVncWNwbllXdXlId1FCM0VJbmtGQW5zUXVSVzVQU1VKNWhpSm1tSWJWcHNBRDZVS1p2WUFNY1ZqZGxUWEFzYmg4bllfYlM1UkVsc3Y0dlc3QnBkcWZNNnNPWFV1NU9mNXplbzhrTXZZb0RhZlk?oc=5",
-  "summary": "बठिंडा, पंजाब में बिक्री के लिए पुराना आयशर 485 ट्रैक्टर, 2023 मॉडल ( टीजेएन253836)",
-  "digest": "",
-  "image": "https://lh3.googleusercontent.com/J6_coFbogxhRI9iM864NL_liGXvsQp2AupsKei7z0cNNfDvGUmWUy20nuUhkREQyrpY4bEeIBuc=s0-w300-rw",
-  "lang": "hi",
-  "region": "bathinda",
-  "matched": "बठिंडा",
-  "place": "बठिंडा",
-  "topic": "",
-  "read": true,
-  "trusted": false,
-  "date": "2026-08-04T09:26:30+00:00",
-  "source": "Tractor Junction",
-  "id": "बठिंडा पंजाब में बिक्री के लिए पुराना आयशर 485 ट्रैक्टर 2023 मॉड"
  },
  {
   "title": "Barnala News : ਤਪਾ–ਜਿਉਂਦ ਮਾਈਨਰ 'ਚ ਪਿਆ ਵੱਡਾ ਪਾੜ, ਖੇਤਾਂ 'ਚ ਪਾਣੀ ਭਰਨ ਨਾਲ 20 ਏਕੜ ਫਸਲ ਪ੍ਰਭਾਵਿਤ",
@@ -525,22 +491,5 @@
   "date": "2026-08-04T11:01:31+00:00",
   "source": "The Tribune",
   "id": "cbi court sends 2 chandigarh cops to 14"
- },
- {
-  "title": "Chandigarh to hike monthly allowance for gallantry awardees by 50 per cent",
-  "link": "https://news.google.com/rss/articles/CBMivAFBVV95cUxOYnpUdHU3WWN0OEp0cWZLXzhsSU5yRjZWei15SVZxaDJodlY0My10ZndNc1IzN1NXdUt0ODRDTlZJYVhsbXFLVHJ5QU9xWHR6REZqaDdLZGl4N0FjWVRNdlJOUXllN3VuVFBTZ0txdmg5cGxwc2hVNWdyTkVzMWwwel9yNTBwN0MzaEEwZEZ6LTZEVThGUGpQSE5EeDJ6Sm1UcERjMEpWXzVPM0FDZ2JkUUlZZVJfMjNrWVJhMNIBwAFBVV95cUxPQXpLR0YySG9hRUpza2RfZ3JtTGFIVDJkNXgzQWVhZk1mVWNtdjgtRjZpUk00UEVXWUJmNXNjZUR0UWhwZUI3UkR1M1ZuZVVxbGVscWpoOFNkUWZFRGJpajdBbUQ0eUk2V2VNZmdDbVdhWWlmMWZYTi1xaTFfLU1zT3lCQTdLMGIzajRoQ2tiRFlubGtUSTMwVDJQWGZpRHpMOXU1OVRzLUVzTU52dFg4aHA1aHVWbEQtU0FaSG9vNVE?oc=5",
-  "summary": "Chandigarh to hike monthly allowance for gallantry awardees by 50 per cent",
-  "digest": "",
-  "image": "https://lh3.googleusercontent.com/J6_coFbogxhRI9iM864NL_liGXvsQp2AupsKei7z0cNNfDvGUmWUy20nuUhkREQyrpY4bEeIBuc=s0-w300-rw",
-  "lang": "en",
-  "region": "chandigarh",
-  "matched": "chandigarh",
-  "place": "chandigarh",
-  "topic": "",
-  "read": true,
-  "trusted": false,
-  "date": "2026-08-04T08:59:40+00:00",
-  "source": "The Tribune",
-  "id": "chandigarh to hike monthly allowance for gallantry awardees by 5"
  }
 ]
